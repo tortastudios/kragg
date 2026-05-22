@@ -1,0 +1,12 @@
+[project]
+name = "crag"
+version = "0.1.0"
+description = "Opinionated guardrails for AI-assisted Python projects"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
