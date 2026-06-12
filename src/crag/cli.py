@@ -8,7 +8,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import cast
 
-from crag import environment, journal, mapping, report, templates
+from crag import brief, environment, journal, mapping, report, templates
 from crag.catalog import build_check_gates, build_security_gates
 from crag.changes import changed_python_files
 from crag.check import GateSpec, run_gates
@@ -82,6 +82,10 @@ def build_parser() -> argparse.ArgumentParser:
     criticality_parser.add_argument("--write", action="store_true")
     criticality_parser.add_argument("--path", default=None)
     criticality_parser.set_defaults(handler=cmd_criticality)
+
+    brief_parser = subparsers.add_parser("brief", help="reviewable change digest")
+    brief_parser.add_argument("--since", default=None)
+    brief_parser.set_defaults(handler=cmd_brief)
 
     map_parser = subparsers.add_parser("map", help="public symbol inventory")
     map_parser.add_argument("--write", action="store_true")
@@ -311,6 +315,16 @@ def cmd_criticality(args: argparse.Namespace) -> int:
         print(f"Wrote {output} and .crag/criticality.json")
     else:
         criticality.print_table(profiles)
+    return 0
+
+
+def cmd_brief(args: argparse.Namespace) -> int:
+    root = Path.cwd()
+    text = brief.build_brief(root, load_policy(root), args.since)
+    if text is None:
+        print("not a git repository (required for brief)", file=sys.stderr)
+        return EXIT_ENVIRONMENT
+    print(text, end="")
     return 0
 
 

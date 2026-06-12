@@ -27,30 +27,42 @@ def check_critical_tests(
         return ()
     if any(_under_any(name, test_paths) for name in changed):
         return ()
-    critical = _critical_entries(root)
-    if not critical:
-        return ()
-    module_files = _module_file_map(root, source_paths)
-    changed_set = set(changed)
     violations: list[Violation] = []
+    for qualname, fan_in, file in critical_in_files(root, source_paths, changed):
+        violations.append(
+            Violation(
+                message=(
+                    f"critical function {qualname} (fan-in {fan_in}) "
+                    "changed without test changes"
+                ),
+                file=file,
+                code="critical-tests",
+                fix_hint=(
+                    "add or update a test covering "
+                    f"{qualname.rsplit('.', 1)[-1]}, or revert the change"
+                ),
+            )
+        )
+    return tuple(violations)
+
+
+def critical_in_files(
+    root: Path,
+    source_paths: tuple[str, ...],
+    files: list[str],
+) -> list[tuple[str, int, str]]:
+    """Return (qualname, fan_in, file) for critical functions in the files."""
+    critical = _critical_entries(root)
+    if not critical or not files:
+        return []
+    module_files = _module_file_map(root, source_paths)
+    file_set = set(files)
+    found: list[tuple[str, int, str]] = []
     for qualname, fan_in in critical:
         file = _file_for_qualname(qualname, module_files)
-        if file is not None and file in changed_set:
-            violations.append(
-                Violation(
-                    message=(
-                        f"critical function {qualname} (fan-in {fan_in}) "
-                        "changed without test changes"
-                    ),
-                    file=file,
-                    code="critical-tests",
-                    fix_hint=(
-                        "add or update a test covering "
-                        f"{qualname.rsplit('.', 1)[-1]}, or revert the change"
-                    ),
-                )
-            )
-    return tuple(violations)
+        if file is not None and file in file_set:
+            found.append((qualname, fan_in, file))
+    return found
 
 
 def _critical_entries(root: Path) -> list[tuple[str, int]]:
