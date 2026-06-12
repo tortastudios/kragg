@@ -32,21 +32,47 @@ tools are missing.
 ## Commands
 
 ```bash
-crag new my-project        # scaffold + uv sync; agent-ready immediately
-crag init .
-crag check                 # all gates, consolidated report
-crag check --changed       # only files changed in git (cheap inner loop)
-crag check --since main    # changed vs merge-base with a ref
+crag new my-app --kind cli   # layered skeleton (cli | api | worker) + uv sync
+crag gen module payments     # service/domain/test slots in the layout
+crag init .                  # add guardrails to an existing project
+crag check                   # all gates, consolidated report
+crag check --changed         # only files changed in git (cheap inner loop)
+crag check --since main      # changed vs merge-base with a ref
 crag check --file src/foo.py --file src/bar.py
-crag check --format json   # stable machine-readable schema
-crag fix                   # auto-fix formatting and safe lint
+crag check --format json     # stable machine-readable schema
+crag fix                     # auto-fix formatting and safe lint
+crag map                     # public symbol inventory (what already exists)
+crag brief                   # reviewable digest of the change set
 crag security
 crag audit
-crag criticality --write
-crag status                # what failed last run, without re-running
-crag doctor                # environment diagnostics with exact fixes
+crag criticality --write     # call-graph risk -> CRITICALITY.md + .crag/
+crag status                  # what failed last run, without re-running
+crag hook claude             # harness hook adapter (reads hook JSON on stdin)
+crag doctor                  # environment diagnostics with exact fixes
 crag policy show
 ```
+
+## Gates
+
+Fast (always all run): ruff, mypy, radon-cc, radon-mi, halstead,
+type-complexity, **boundaries** (layered import contract from
+`[tool.crag] layers`), **structure** (file/symbol budgets),
+**critical-tests** (critical functions cannot change without test changes),
+**test-quality** (no assertion-free tests; critical functions must be
+referenced by tests), bandit, detect-secrets.
+Slow (skipped while fast gates fail): pytest+coverage, pip-audit.
+
+## Agent-native design
+
+Agents drift where they have freedom, so the scaffold removes the freedom:
+every kind ships one layered layout (`entrypoints/` → `services/` →
+`domain/`) with the `boundaries` gate enforcing dependency direction from
+the first commit, and `crag gen module` creates new code in the one place
+it belongs. The tool holds the memory the agent lacks: `crag map` is the
+inventory of what exists (injected at session start so nothing gets
+reinvented), `.crag/history.jsonl` remembers runs, `CRITICALITY.md`
+remembers risk, and `crag brief` renders the change set legible to the
+human reviewer.
 
 ## Agent loop design
 

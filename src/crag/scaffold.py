@@ -345,11 +345,14 @@ fails, fix the failure before moving to unrelated work.
 
 | When | Command |
 | --- | --- |
+| Before writing new code (discover what exists) | `uv run crag map` |
+| Adding a feature area | `uv run crag gen module <name>` |
 | After editing Python files (inner loop) | `uv run crag check --changed` |
 | Before claiming a task is done | `uv run crag check` |
 | Auto-fix formatting and safe lint | `uv run crag fix` |
 | Machine-readable results | `uv run crag check --format json` |
 | What failed last run (without re-running) | `uv run crag status` |
+| Summarize the change set for review | `uv run crag brief` |
 | Environment problems | `uv run crag doctor` |
 
 ## Exit codes

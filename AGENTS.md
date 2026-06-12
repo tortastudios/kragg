@@ -42,11 +42,16 @@ Do not optimize for elegance by expanding scope. Do not optimize for performance
 - `src/crag/models.py`: shared result/context data types.
 - `src/crag/runner.py`: external command execution wrapper.
 - `src/crag/environment.py`: project-interpreter resolution for environment-dependent tools (pytest, mypy, pip-audit, deptry).
-- `src/crag/check.py`: gate pipeline (fast/slow tiers, run-all semantics).
+- `src/crag/check.py`: gate pipeline engine (GateSpec, run_gates, fast/slow tiers).
+- `src/crag/catalog.py`: assembles the concrete check/security pipelines from the gates.
 - `src/crag/parsers.py`: tool output parsers producing structured violations.
 - `src/crag/report.py`: consolidated reports, JSON schema, text rendering, exit codes.
 - `src/crag/changes.py`: git-based changed-file detection for `--changed`.
 - `src/crag/journal.py`: `.crag/history.jsonl` run journal backing `crag status`.
+- `src/crag/hooks.py`: harness hook adapters (`crag hook claude`).
+- `src/crag/mapping.py`: public-symbol inventory backing `crag map`.
+- `src/crag/brief.py`: reviewable change digest backing `crag brief`.
+- `src/crag/templates.py`: generated source for project kinds and `crag gen module`.
 - `tests/`: focused unit and CLI tests.
 - `pyproject.toml`: package metadata, CLI entry point, dependencies, and tool configuration.
 
