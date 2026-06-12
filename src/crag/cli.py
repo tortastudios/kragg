@@ -8,7 +8,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import cast
 
-from crag import environment, journal, report
+from crag import environment, journal, mapping, report
 from crag.changes import changed_python_files
 from crag.check import GateSpec, build_check_gates, build_security_gates, run_gates
 from crag.environment import ProjectEnvironment, resolve_project_environment
@@ -75,6 +75,10 @@ def build_parser() -> argparse.ArgumentParser:
     criticality_parser.add_argument("--write", action="store_true")
     criticality_parser.add_argument("--path", default=None)
     criticality_parser.set_defaults(handler=cmd_criticality)
+
+    map_parser = subparsers.add_parser("map", help="public symbol inventory")
+    map_parser.add_argument("--write", action="store_true")
+    map_parser.set_defaults(handler=cmd_map)
 
     hook_parser = subparsers.add_parser(
         "hook",
@@ -286,6 +290,20 @@ def cmd_criticality(args: argparse.Namespace) -> int:
         print(f"Wrote {output} and .crag/criticality.json")
     else:
         criticality.print_table(profiles)
+    return 0
+
+
+def cmd_map(args: argparse.Namespace) -> int:
+    root = Path.cwd()
+    lines = mapping.build_map(root, load_policy(root))
+    if not lines:
+        print("no public symbols found")
+        return 0
+    print("\n".join(lines))
+    if args.write:
+        output = root / ".crag" / "map.md"
+        mapping.write_map(lines, output)
+        print(f"Wrote {output}")
     return 0
 
 

@@ -20,7 +20,7 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
-from crag import journal, report
+from crag import journal, mapping, report
 from crag.changes import changed_python_files
 from crag.check import build_check_gates, run_gates
 from crag.environment import resolve_project_environment
@@ -75,6 +75,9 @@ def _stop(data: dict[str, Any], root: Path) -> int:
     return 0
 
 
+MAX_MAP_LINES = 60
+
+
 def _session_start(root: Path) -> int:
     runs = journal.read_runs(root, 10)
     if runs:
@@ -85,7 +88,19 @@ def _session_start(root: Path) -> int:
         print("critical functions (extra scrutiny + tests when editing):")
         for name in critical:
             print(f"  {name}")
+    _print_map_digest(root)
     return 0
+
+
+def _print_map_digest(root: Path) -> None:
+    lines = mapping.build_map(root, load_policy(root))
+    if not lines:
+        return
+    print("project map (public symbols):")
+    for line in lines[:MAX_MAP_LINES]:
+        print(line)
+    if len(lines) > MAX_MAP_LINES:
+        print(f"  … {len(lines) - MAX_MAP_LINES} more — run `uv run crag map`")
 
 
 def _edit_targets(data: dict[str, Any], root: Path) -> tuple[str, ...]:
