@@ -8,7 +8,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import cast
 
-from crag import environment, journal, mapping, report
+from crag import environment, journal, mapping, report, templates
 from crag.changes import changed_python_files
 from crag.check import GateSpec, build_check_gates, build_security_gates, run_gates
 from crag.environment import ProjectEnvironment, resolve_project_environment
@@ -18,7 +18,7 @@ from crag.models import CompletedCommand
 from crag.policy import CragPolicy, load_policy
 from crag.report import EXIT_ENVIRONMENT, EXIT_OK, EXIT_USAGE
 from crag.runner import run_command
-from crag.scaffold import create_new_project, initialize_project
+from crag.scaffold import create_new_project, generate_module, initialize_project
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -42,8 +42,14 @@ def build_parser() -> argparse.ArgumentParser:
 
     new_parser = subparsers.add_parser("new", help="create a new project")
     new_parser.add_argument("name")
+    new_parser.add_argument("--kind", choices=templates.KINDS, default="cli")
     new_parser.add_argument("--no-sync", action="store_true")
     new_parser.set_defaults(handler=cmd_new)
+
+    gen_parser = subparsers.add_parser("gen", help="generate code into the layout")
+    gen_parser.add_argument("generator", choices=("module",))
+    gen_parser.add_argument("name")
+    gen_parser.set_defaults(handler=cmd_gen)
 
     init_parser = subparsers.add_parser("init", help="add crag to a project")
     init_parser.add_argument("path", nargs="?", default=".")
@@ -116,8 +122,8 @@ def _add_report_arguments(parser: argparse.ArgumentParser) -> None:
 def cmd_new(args: argparse.Namespace) -> int:
     target = Path(args.name).resolve()
     try:
-        written = create_new_project(target, target.name)
-    except FileExistsError as exc:
+        written = create_new_project(target, target.name, kind=args.kind)
+    except (FileExistsError, ValueError) as exc:
         print(exc, file=sys.stderr)
         return 1
     print(f"Created {target}")
@@ -140,6 +146,20 @@ def _sync_new_project(target: Path) -> None:
     else:
         print("uv sync failed; run it manually after fixing:", file=sys.stderr)
         print(result.output, file=sys.stderr)
+
+
+def cmd_gen(args: argparse.Namespace) -> int:
+    del args.generator  # only "module" exists today
+    root = Path.cwd()
+    try:
+        written = generate_module(root, args.name)
+    except (FileExistsError, RuntimeError) as exc:
+        print(exc, file=sys.stderr)
+        return 1
+    for path in written:
+        print(f"Wrote {path.relative_to(root)}")
+    print("Run `uv run crag check` after filling in the slots.")
+    return 0
 
 
 def cmd_init(args: argparse.Namespace) -> int:
