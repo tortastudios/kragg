@@ -19,7 +19,7 @@ from crag.environment import (
     missing_module,
     remediation,
 )
-from crag.gates import halstead, secrets, type_complexity
+from crag.gates import architecture, halstead, secrets, type_complexity
 from crag.models import GateResult, Violation
 from crag.parsers import (
     parse_bandit_json,
@@ -133,6 +133,13 @@ def build_check_gates(
             FAST,
             lambda: _type_complexity_gate(root, policy, targets),
         ),
+        GateSpec(
+            "boundaries",
+            FAST,
+            lambda: _boundaries_gate(root, policy),
+            skip_reason=None if len(policy.layers) >= 2 else "no layers configured",
+        ),
+        GateSpec("structure", FAST, lambda: _structure_gate(root, policy)),
         GateSpec("bandit", FAST, lambda: _bandit_gate(root, targets)),
         GateSpec("detect-secrets", FAST, lambda: _secrets_gate(root, targets)),
         GateSpec(
@@ -363,6 +370,31 @@ def _type_complexity_gate(
         name="type-complexity",
         passed=not violations,
         violations=tuple(violations),
+        violation_count=len(violations),
+    )
+
+
+def _boundaries_gate(root: Path, policy: CragPolicy) -> GateResult:
+    violations = architecture.check_layers(root, policy.source_paths, policy.layers)
+    return GateResult(
+        name="boundaries",
+        passed=not violations,
+        violations=violations,
+        violation_count=len(violations),
+    )
+
+
+def _structure_gate(root: Path, policy: CragPolicy) -> GateResult:
+    violations = architecture.check_structure(
+        root,
+        policy.source_paths,
+        policy.max_file_lines,
+        policy.max_public_symbols,
+    )
+    return GateResult(
+        name="structure",
+        passed=not violations,
+        violations=violations,
         violation_count=len(violations),
     )
 

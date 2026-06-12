@@ -117,11 +117,11 @@ def _parse_modules(src_dir: Path) -> dict[str, ast.Module]:
             tree = ast.parse(path.read_text(), filename=str(path))
         except SyntaxError:
             continue
-        modules[_module_name(path, src_dir)] = tree
+        modules[module_name(path, src_dir)] = tree
     return modules
 
 
-def _module_name(path: Path, src_dir: Path) -> str:
+def module_name(path: Path, src_dir: Path) -> str:
     relative = path.relative_to(src_dir).with_suffix("")
     parts = list(relative.parts)
     if parts[-1] == "__init__":
@@ -132,7 +132,7 @@ def _module_name(path: Path, src_dir: Path) -> str:
 def _build_index(modules: dict[str, ast.Module]) -> _ProjectIndex:
     index = _ProjectIndex()
     for module, tree in modules.items():
-        index.imports[module] = _module_imports(module, tree)
+        index.imports[module] = module_imports(module, tree)
         _index_definitions(index, module, tree, class_name=None)
     return index
 
@@ -153,7 +153,7 @@ def _index_definitions(
             _index_definitions(index, module, child, class_name=class_name)
 
 
-def _module_imports(module: str, tree: ast.Module) -> dict[str, str]:
+def module_imports(module: str, tree: ast.Module) -> dict[str, str]:
     imports: dict[str, str] = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):

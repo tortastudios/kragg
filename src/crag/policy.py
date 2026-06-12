@@ -17,6 +17,9 @@ class CragPolicy:
     type_max_nesting_depth: int = 2
     type_max_length: int = 40
     max_violations_per_gate: int = 25
+    layers: tuple[str, ...] = ()
+    max_file_lines: int = 500
+    max_public_symbols: int = 20
 
     def as_dict(self) -> dict[str, object]:
         return cast(dict[str, object], asdict(self))
@@ -45,6 +48,13 @@ def load_policy(root: Path) -> CragPolicy:
             table,
             "max_violations_per_gate",
             default.max_violations_per_gate,
+        ),
+        layers=_get_str_tuple(table, "layers", default.layers),
+        max_file_lines=_get_int(table, "max_file_lines", default.max_file_lines),
+        max_public_symbols=_get_int(
+            table,
+            "max_public_symbols",
+            default.max_public_symbols,
         ),
     )
 
