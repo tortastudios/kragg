@@ -13,6 +13,7 @@ from crag.changes import changed_python_files
 from crag.check import GateSpec, build_check_gates, build_security_gates, run_gates
 from crag.environment import ProjectEnvironment, resolve_project_environment
 from crag.gates import criticality
+from crag.hooks import run_claude_hook
 from crag.models import CompletedCommand
 from crag.policy import CragPolicy, load_policy
 from crag.report import EXIT_ENVIRONMENT, EXIT_OK, EXIT_USAGE
@@ -74,6 +75,13 @@ def build_parser() -> argparse.ArgumentParser:
     criticality_parser.add_argument("--write", action="store_true")
     criticality_parser.add_argument("--path", default=None)
     criticality_parser.set_defaults(handler=cmd_criticality)
+
+    hook_parser = subparsers.add_parser(
+        "hook",
+        help="harness hook adapter (reads hook JSON from stdin)",
+    )
+    hook_parser.add_argument("harness", choices=("claude",))
+    hook_parser.set_defaults(handler=cmd_hook)
 
     status_parser = subparsers.add_parser("status", help="show recent run history")
     status_parser.add_argument("--format", choices=("text", "json"), default="text")
@@ -274,10 +282,16 @@ def cmd_criticality(args: argparse.Namespace) -> int:
     if args.write:
         output = root / "CRITICALITY.md"
         criticality.write_report(profiles, output)
-        print(f"Wrote {output}")
+        criticality.write_json(profiles, root / ".crag" / "criticality.json")
+        print(f"Wrote {output} and .crag/criticality.json")
     else:
         criticality.print_table(profiles)
     return 0
+
+
+def cmd_hook(args: argparse.Namespace) -> int:
+    del args  # only the claude protocol exists today
+    return run_claude_hook(sys.stdin.read(), Path.cwd())
 
 
 def cmd_status(args: argparse.Namespace) -> int:

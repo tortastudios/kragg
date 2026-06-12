@@ -12,7 +12,6 @@ dependencies = [
     "mypy>=1.19.1",
     "networkx>=3.4.2",
     "pip-audit>=2.9.0",
-    "pyan3>=2.1.0",
     "pytest>=9.0.2",
     "pytest-cov>=7.0.0",
     "radon>=6.0.1",

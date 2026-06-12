@@ -40,8 +40,9 @@ def test_scaffold_hooks_use_incremental_check(tmp_path: Path) -> None:
     create_new_project(target, "demo")
 
     settings = (target / ".claude" / "settings.json").read_text()
-    assert "uv run crag check --changed" in settings
+    assert "uv run crag hook claude" in settings
     assert '"Stop"' in settings
+    assert '"SessionStart"' in settings
 
 
 def test_scaffold_project_env_is_self_sufficient(tmp_path: Path) -> None:

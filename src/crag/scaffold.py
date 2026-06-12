@@ -261,7 +261,7 @@ CLAUDE_SETTINGS = """{
         "hooks": [
           {
             "type": "command",
-            "command": "uv run crag check --changed"
+            "command": "uv run crag hook claude"
           }
         ]
       }
@@ -271,7 +271,17 @@ CLAUDE_SETTINGS = """{
         "hooks": [
           {
             "type": "command",
-            "command": "uv run crag check"
+            "command": "uv run crag hook claude"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run crag hook claude"
           }
         ]
       }
