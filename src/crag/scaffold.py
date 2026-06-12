@@ -48,6 +48,8 @@ def _write_project_files(
         ".pre-commit-config.yaml": PRE_COMMIT,
         ".github/workflows/quality.yml": GITHUB_ACTIONS,
         ".claude/settings.json": CLAUDE_SETTINGS,
+        ".gemini/settings.json": GEMINI_SETTINGS,
+        "AGENTS.md": AGENTS_MD,
         "CLAUDE.md": CLAUDE_MD,
         "CRITICALITY.md": CRITICALITY_MD,
         "docs/type-complexity.md": TYPE_COMPLEXITY_DOC,
@@ -80,7 +82,15 @@ def _ensure_pyproject_config(root: Path, project_name: str) -> None:
     if "[tool.crag]" not in content:
         additions.append(TOOL_CRAG)
     if "[dependency-groups]" not in content and "crag" not in content:
-        additions.append('\n[dependency-groups]\ndev = ["crag>=0.1.0"]\n')
+        additions.append(
+            "\n[dependency-groups]\n"
+            "dev = [\n"
+            '    "crag>=0.1.0",\n'
+            '    "pytest>=9.0.2",\n'
+            '    "pytest-cov>=7.0.0",\n'
+            '    "mypy>=1.19.1",\n'
+            "]\n"
+        )
     if additions:
         pyproject.write_text(content.rstrip() + "\n" + "".join(additions))
 
@@ -100,7 +110,12 @@ requires-python = ">=3.12"
 dependencies = []
 
 [dependency-groups]
-dev = ["crag>=0.1.0"]
+dev = [
+    "crag>=0.1.0",
+    "pytest>=9.0.2",
+    "pytest-cov>=7.0.0",
+    "mypy>=1.19.1",
+]
 
 [tool.crag]
 profile = "strict-ai-python"
@@ -113,6 +128,9 @@ type_max_length = 40
 [tool.pytest.ini_options]
 addopts = "--cov=src --cov-report=term-missing --cov-fail-under=80 -q"
 testpaths = ["tests"]
+
+[tool.coverage.report]
+exclude_also = ["if __name__ == .__main__.:"]
 
 [build-system]
 requires = ["hatchling"]
@@ -163,6 +181,9 @@ coverage.xml
 
 # ruff
 .ruff_cache/
+
+# crag run journal
+.crag/
 
 # env
 .env
@@ -240,6 +261,16 @@ CLAUDE_SETTINGS = """{
         "hooks": [
           {
             "type": "command",
+            "command": "uv run crag check --changed"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "uv run crag check"
           }
         ]
@@ -249,21 +280,48 @@ CLAUDE_SETTINGS = """{
 }
 """
 
-CLAUDE_MD = """# crag Quality Contract
+GEMINI_SETTINGS = """{
+  "contextFileName": "AGENTS.md"
+}
+"""
 
-Run `uv run crag check` after Python edits. If the gate fails, fix the failure
-before moving to unrelated work.
+AGENTS_MD = """# Agent Contract
 
-Before editing functions listed in `CRITICALITY.md`, use extra scrutiny: full
-input and return types, a contract docstring, and tests for changed behavior.
+This project is guarded by `crag`. Gates are enforced, not advisory: if a gate
+fails, fix the failure before moving to unrelated work.
 
-Core rules:
+## Commands
 
+| When | Command |
+| --- | --- |
+| After editing Python files (inner loop) | `uv run crag check --changed` |
+| Before claiming a task is done | `uv run crag check` |
+| Auto-fix formatting and safe lint | `uv run crag fix` |
+| Machine-readable results | `uv run crag check --format json` |
+| What failed last run (without re-running) | `uv run crag status` |
+| Environment problems | `uv run crag doctor` |
+
+## Exit codes
+
+- `0` all gates passed
+- `1` gate failures — fix the reported `file:line` violations
+- `2` usage error — fix the command invocation
+- `3` environment broken — run `uv run crag doctor` and apply the printed fix
+
+## Quality rules
+
+- Run gates through the project environment (`uv run crag ...`), never globally.
+- Before editing functions listed in `CRITICALITY.md`, use extra scrutiny: full
+  input and return types, a contract docstring, and tests for changed behavior.
 - Prefer early returns over nested conditionals.
 - Keep functions short and typed.
 - Extract named dataclasses, TypedDicts, or aliases for complex annotations.
 - Never hardcode credentials.
 - Never suppress security or typing findings without an explicit reason.
+"""
+
+CLAUDE_MD = """Follow the rules in AGENTS.md. It is the canonical agent contract
+for this repository.
 """
 
 CRITICALITY_MD = """# Critical Functions

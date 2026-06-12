@@ -8,9 +8,14 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import cast
 
-from crag.gates import criticality, halstead, secrets, type_complexity
+from crag import environment, journal, report
+from crag.changes import changed_python_files
+from crag.check import GateSpec, build_check_gates, build_security_gates, run_gates
+from crag.environment import ProjectEnvironment, resolve_project_environment
+from crag.gates import criticality
 from crag.models import CompletedCommand
-from crag.policy import load_policy
+from crag.policy import CragPolicy, load_policy
+from crag.report import EXIT_ENVIRONMENT, EXIT_OK, EXIT_USAGE
 from crag.runner import run_command
 from crag.scaffold import create_new_project, initialize_project
 
@@ -25,7 +30,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     if handler is None:
         parser.print_help()
-        return 2
+        return EXIT_USAGE
     return handler(args)
 
 
@@ -36,6 +41,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     new_parser = subparsers.add_parser("new", help="create a new project")
     new_parser.add_argument("name")
+    new_parser.add_argument("--no-sync", action="store_true")
     new_parser.set_defaults(handler=cmd_new)
 
     init_parser = subparsers.add_parser("init", help="add crag to a project")
@@ -43,15 +49,19 @@ def build_parser() -> argparse.ArgumentParser:
     init_parser.set_defaults(handler=cmd_init)
 
     check_parser = subparsers.add_parser("check", help="run quality gates")
-    check_parser.add_argument("--file", dest="target")
+    _add_report_arguments(check_parser)
+    check_parser.add_argument("--changed", action="store_true")
+    check_parser.add_argument("--since", default=None)
+    check_parser.add_argument("--fail-fast", dest="fail_fast", action="store_true")
+    check_parser.add_argument("--all", dest="run_all", action="store_true")
     check_parser.set_defaults(handler=cmd_check)
 
     fix_parser = subparsers.add_parser("fix", help="format and safely fix lint")
-    fix_parser.add_argument("--file", dest="target")
+    fix_parser.add_argument("--file", dest="targets", action="append")
     fix_parser.set_defaults(handler=cmd_fix)
 
     security_parser = subparsers.add_parser("security", help="run security gates")
-    security_parser.add_argument("--file", dest="target")
+    _add_report_arguments(security_parser)
     security_parser.set_defaults(handler=cmd_security)
 
     audit_parser = subparsers.add_parser("audit", help="run architecture audit")
@@ -64,6 +74,11 @@ def build_parser() -> argparse.ArgumentParser:
     criticality_parser.add_argument("--write", action="store_true")
     criticality_parser.add_argument("--path", default=None)
     criticality_parser.set_defaults(handler=cmd_criticality)
+
+    status_parser = subparsers.add_parser("status", help="show recent run history")
+    status_parser.add_argument("--format", choices=("text", "json"), default="text")
+    status_parser.add_argument("--last", type=int, default=10)
+    status_parser.set_defaults(handler=cmd_status)
 
     doctor_parser = subparsers.add_parser("doctor", help="verify project setup")
     doctor_parser.set_defaults(handler=cmd_doctor)
@@ -79,6 +94,13 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _add_report_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--file", dest="targets", action="append")
+    parser.add_argument("--format", choices=("text", "json"), default="text")
+    parser.add_argument("--max-violations", dest="max_violations", type=int)
+    parser.add_argument("--no-journal", dest="no_journal", action="store_true")
+
+
 def cmd_new(args: argparse.Namespace) -> int:
     target = Path(args.name).resolve()
     try:
@@ -88,7 +110,24 @@ def cmd_new(args: argparse.Namespace) -> int:
         return 1
     print(f"Created {target}")
     print(f"Wrote {len(written)} files")
+    if not args.no_sync:
+        _sync_new_project(target)
+    print("Next steps:")
+    print(f"  cd {args.name}")
+    print("  uv run crag check")
     return 0
+
+
+def _sync_new_project(target: Path) -> None:
+    if shutil.which("uv") is None:
+        print("uv not found; create the environment with `uv sync`")
+        return
+    result = run_command("uv sync", ["uv", "sync"], target)
+    if result.passed:
+        print("Synced project environment (.venv)")
+    else:
+        print("uv sync failed; run it manually after fixing:", file=sys.stderr)
+        print(result.output, file=sys.stderr)
 
 
 def cmd_init(args: argparse.Namespace) -> int:
@@ -102,43 +141,105 @@ def cmd_init(args: argparse.Namespace) -> int:
 def cmd_check(args: argparse.Namespace) -> int:
     root = Path.cwd()
     policy = load_policy(root)
-    target = _target_or_default(args.target, policy.source_paths)
-
-    if _run_external("ruff", _module("ruff", "check", target), root) != 0:
-        return 1
-    if _run_external("mypy", _module("mypy", target), root) != 0:
-        return 1
-    if _run_radon(root, target) != 0:
-        return 1
-    if _run_type_complexity(root, target) != 0:
-        return 1
-    if _run_coverage(root, target, policy.coverage_fail_under) != 0:
-        return 1
-    if _run_security(root, target) != 0:
-        return 1
-
-    print(f"All quality gates passed for {target}")
-    return 0
-
-
-def cmd_fix(args: argparse.Namespace) -> int:
-    root = Path.cwd()
-    policy = load_policy(root)
-    target = _target_or_default(args.target, policy.source_paths)
-    for command_name, command in (
-        ("ruff format", _module("ruff", "format", target)),
-        ("ruff fix", _module("ruff", "check", "--fix", target)),
-    ):
-        if _run_external(command_name, command, root) != 0:
-            return 1
-    return 0
+    resolved = _check_targets(args, root, policy)
+    if resolved is None:
+        return EXIT_ENVIRONMENT
+    targets, mode = resolved
+    if not targets:
+        print("no changed Python files")
+        return EXIT_OK
+    env = _project_environment(root)
+    if env is None:
+        return EXIT_ENVIRONMENT
+    specs = build_check_gates(root, policy, env, targets, incremental=mode != "full")
+    return _run_pipeline("check", args, root, policy, specs, targets, mode)
 
 
 def cmd_security(args: argparse.Namespace) -> int:
     root = Path.cwd()
     policy = load_policy(root)
-    target = _target_or_default(args.target, policy.source_paths)
-    return _run_security(root, target)
+    targets = tuple(args.targets) if args.targets else (policy.source_paths[0],)
+    mode = "file" if args.targets else "full"
+    env = _project_environment(root)
+    if env is None:
+        return EXIT_ENVIRONMENT
+    specs = build_security_gates(root, env, targets, incremental=mode != "full")
+    return _run_pipeline("security", args, root, policy, specs, targets, mode)
+
+
+def _check_targets(
+    args: argparse.Namespace,
+    root: Path,
+    policy: CragPolicy,
+) -> tuple[tuple[str, ...], str] | None:
+    if args.changed or args.since:
+        allowed = (*policy.source_paths, *policy.test_paths)
+        files = changed_python_files(root, args.since, allowed)
+        if files is None:
+            print(
+                "not a git repository (required for --changed/--since)",
+                file=sys.stderr,
+            )
+            return None
+        return tuple(files), "changed"
+    if args.targets:
+        return tuple(args.targets), "file"
+    return (policy.source_paths[0],), "full"
+
+
+def _project_environment(root: Path) -> ProjectEnvironment | None:
+    try:
+        return resolve_project_environment(root)
+    except RuntimeError as exc:
+        print(exc, file=sys.stderr)
+        return None
+
+
+def _run_pipeline(
+    command: str,
+    args: argparse.Namespace,
+    root: Path,
+    policy: CragPolicy,
+    specs: list[GateSpec],
+    targets: tuple[str, ...],
+    mode: str,
+) -> int:
+    started_at = report.utc_now()
+    results = run_gates(
+        specs,
+        fail_fast=getattr(args, "fail_fast", False),
+        force_slow=getattr(args, "run_all", False),
+    )
+    max_violations = args.max_violations or policy.max_violations_per_gate
+    built = report.build_report(
+        command=command,
+        mode=mode,
+        targets=targets,
+        results=results,
+        max_violations=max_violations,
+        started_at=started_at,
+        git_sha=report.git_sha(root),
+    )
+    if args.format == "json":
+        print(report.render_json(built))
+    else:
+        print(report.render_text(built))
+    if not args.no_journal:
+        journal.append_run(root, report.to_payload(built))
+    return built.exit_code
+
+
+def cmd_fix(args: argparse.Namespace) -> int:
+    root = Path.cwd()
+    policy = load_policy(root)
+    targets = tuple(args.targets) if args.targets else (policy.source_paths[0],)
+    for command_name, command in (
+        ("ruff format", _module("ruff", "format", *targets)),
+        ("ruff fix", _module("ruff", "check", "--fix", *targets)),
+    ):
+        if _run_external(command_name, command, root) != 0:
+            return 1
+    return 0
 
 
 def cmd_audit(args: argparse.Namespace) -> int:
@@ -150,7 +251,10 @@ def cmd_audit(args: argparse.Namespace) -> int:
         return 1
     if _run_external("vulture", _module("vulture", source), root) != 0:
         return 1
-    if _run_external("deptry", _module("deptry", source), root) != 0:
+    env = _project_environment(root)
+    if env is None:
+        return EXIT_ENVIRONMENT
+    if _run_project_external("deptry", env, root, "deptry", source) != 0:
         return 1
     print("Audit complete")
     return 0
@@ -176,6 +280,21 @@ def cmd_criticality(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_status(args: argparse.Namespace) -> int:
+    root = Path.cwd()
+    runs = journal.read_runs(root, args.last)
+    if args.format == "json":
+        last_run = runs[-1] if runs else None
+        print(json.dumps({"last_run": last_run, "runs": runs}, indent=1))
+        return 0
+    if not runs:
+        print("no recorded runs (run `crag check` first)")
+        return 0
+    for line in journal.render_status_lines(runs):
+        print(line)
+    return 0
+
+
 def cmd_doctor(args: argparse.Namespace) -> int:
     del args
     root = Path.cwd()
@@ -191,7 +310,46 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         status = "ok" if passed else "missing"
         print(f"{label}: {status}")
         failed = failed or not passed
+    if not _doctor_environment(root):
+        failed = True
     return 1 if failed else 0
+
+
+def _doctor_environment(root: Path) -> bool:
+    print(f"crag interpreter: {sys.executable}")
+    env = _project_environment(root)
+    if env is None:
+        return False
+    if not env.found:
+        print(
+            "project interpreter: MISSING -> fix: uv sync "
+            f"(or set {environment.ENV_VAR}=/path/to/python)"
+        )
+        return False
+    print(f"project interpreter: {env.describe()}")
+    crag_prefix = Path(sys.prefix).resolve()
+    if env.python is not None and env.python.parent.parent.resolve() == crag_prefix:
+        print("note: crag runs inside the project environment (dev-dependency mode)")
+    if not (root / "pyproject.toml").exists():
+        print("project env tools: skipped (no pyproject.toml)")
+        return True
+    return _doctor_project_tools(env)
+
+
+def _doctor_project_tools(env: ProjectEnvironment) -> bool:
+    probed = environment.probe_modules(env, environment.PROJECT_MODULES)
+    if probed is None:
+        print("project env tools: could not probe (interpreter failed to run)")
+        return False
+    print("project env tools:")
+    ok = True
+    for module in environment.PROJECT_MODULES:
+        if probed.get(module, False):
+            print(f"  {module}: ok")
+        else:
+            print(f"  {module}: MISSING -> {environment.remediation(module)}")
+            ok = False
+    return ok
 
 
 def cmd_policy_show(args: argparse.Namespace) -> int:
@@ -201,97 +359,28 @@ def cmd_policy_show(args: argparse.Namespace) -> int:
     return 0
 
 
-def _run_radon(root: Path, target: str) -> int:
-    cc = run_command("radon cc", _module("radon", "cc", target, "-s", "-n", "C"), root)
-    _print_command(cc)
-    if not cc.passed or cc.stdout.strip():
-        print("Functions graded C or worse found (max allowed: B)")
-        return 1
-
-    mi = run_command("radon mi", _module("radon", "mi", target, "-s"), root)
-    _print_command(mi)
-    if not mi.passed:
-        return 1
-    bad_mi = [
-        line for line in mi.stdout.splitlines() if line.rstrip().endswith((" B", " C"))
-    ]
-    if bad_mi:
-        print("\n".join(bad_mi))
-        print("Files with MI grade B or C found (minimum: A)")
-        return 1
-
-    failures = halstead.check_path(_resolve(root, target))
-    if failures:
-        print("Halstead violations:")
-        for failure in failures:
-            print(halstead.format_violation(failure))
-        return 1
-    print("halstead: ok")
-    return 0
-
-
-def _run_type_complexity(root: Path, target: str) -> int:
-    policy = load_policy(root)
-    violations = type_complexity.check_path(
-        _resolve(root, target),
-        policy.type_max_nesting_depth,
-        policy.type_max_length,
-    )
-    if violations:
-        print("Type annotation complexity violations:")
-        for violation in violations:
-            print(type_complexity.format_violation(violation))
-        return 1
-    print("type complexity: ok")
-    return 0
-
-
-def _run_coverage(root: Path, target: str, fail_under: int) -> int:
-    target_path = _resolve(root, target)
-    if target_path.is_file():
-        print("pytest + coverage: skipped for single-file check")
-        return 0
-    command = _module(
-        "pytest",
-        "--cov=src",
-        "--cov-report=term-missing",
-        f"--cov-fail-under={fail_under}",
-        "-q",
-    )
-    return _run_external("pytest + coverage", command, root)
-
-
-def _run_security(root: Path, target: str) -> int:
-    pyproject = root / "pyproject.toml"
-    bandit_command = _module("bandit", "-ll", "-r", target)
-    if pyproject.exists():
-        bandit_command = _module("bandit", "-c", "pyproject.toml", "-ll", "-r", target)
-    if _run_external("bandit", bandit_command, root) != 0:
-        return 1
-    if _run_external("pip-audit", _module("pip_audit"), root) != 0:
-        return 1
-
-    try:
-        baseline = secrets.load_baseline(root)
-        scan_results = secrets.scan_target(root, _resolve(root, target))
-    except RuntimeError as exc:
-        print(exc, file=sys.stderr)
-        return 1
-
-    new_secrets = secrets.find_new_secrets(scan_results, baseline)
-    if new_secrets:
-        print("New secrets detected:")
-        for secret in new_secrets:
-            print(secret)
-        return 1
-    print("detect-secrets: ok")
-    return 0
-
-
 def _run_external(name: str, command: Sequence[str], root: Path) -> int:
     result = run_command(name, command, root)
     _print_command(result)
     return 0 if result.passed else 1
+
+
+def _run_project_external(
+    name: str,
+    env: ProjectEnvironment,
+    root: Path,
+    module: str,
+    *args: str,
+) -> int:
+    result = run_command(name, env.module_command(module, *args), root)
+    _print_command(result)
+    if result.passed:
+        return 0
+    missing = environment.missing_module(result)
+    if missing == module:
+        print(environment.remediation(missing))
+        return EXIT_ENVIRONMENT
+    return 1
 
 
 def _print_command(result: CompletedCommand) -> None:
@@ -302,12 +391,3 @@ def _print_command(result: CompletedCommand) -> None:
 
 def _module(module: str, *args: str) -> list[str]:
     return [sys.executable, "-m", module, *args]
-
-
-def _target_or_default(target: str | None, defaults: tuple[str, ...]) -> str:
-    return target or defaults[0]
-
-
-def _resolve(root: Path, target: str) -> Path:
-    path = Path(target)
-    return path if path.is_absolute() else root / path

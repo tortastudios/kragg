@@ -16,13 +16,14 @@ class CragPolicy:
     coverage_fail_under: int = 80
     type_max_nesting_depth: int = 2
     type_max_length: int = 40
+    max_violations_per_gate: int = 25
 
     def as_dict(self) -> dict[str, object]:
         return cast(dict[str, object], asdict(self))
 
 
 def load_policy(root: Path) -> CragPolicy:
-    """Load policy settings from pyproject.toml, falling back to defaults."""
+    """Load policy from crag.toml, then pyproject [tool.crag], then defaults."""
     table = _load_crag_table(root)
     default = CragPolicy()
     return CragPolicy(
@@ -40,10 +41,19 @@ def load_policy(root: Path) -> CragPolicy:
             default.type_max_nesting_depth,
         ),
         type_max_length=_get_int(table, "type_max_length", default.type_max_length),
+        max_violations_per_gate=_get_int(
+            table,
+            "max_violations_per_gate",
+            default.max_violations_per_gate,
+        ),
     )
 
 
 def _load_crag_table(root: Path) -> dict[str, object]:
+    standalone = root / "crag.toml"
+    if standalone.exists():
+        return cast(dict[str, object], tomllib.loads(standalone.read_text()))
+
     pyproject = root / "pyproject.toml"
     if not pyproject.exists():
         return {}
