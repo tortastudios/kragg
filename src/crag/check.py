@@ -19,7 +19,7 @@ from crag.environment import (
     missing_module,
     remediation,
 )
-from crag.gates import architecture, halstead, secrets, type_complexity
+from crag.gates import architecture, critical_tests, halstead, secrets, type_complexity
 from crag.models import GateResult, Violation
 from crag.parsers import (
     parse_bandit_json,
@@ -140,6 +140,16 @@ def build_check_gates(
             skip_reason=None if len(policy.layers) >= 2 else "no layers configured",
         ),
         GateSpec("structure", FAST, lambda: _structure_gate(root, policy)),
+        GateSpec(
+            "critical-tests",
+            FAST,
+            lambda: _critical_tests_gate(root, policy),
+            skip_reason=(
+                None
+                if (root / ".crag" / "criticality.json").exists()
+                else "no criticality data (run `crag criticality --write`)"
+            ),
+        ),
         GateSpec("bandit", FAST, lambda: _bandit_gate(root, targets)),
         GateSpec("detect-secrets", FAST, lambda: _secrets_gate(root, targets)),
         GateSpec(
@@ -393,6 +403,20 @@ def _structure_gate(root: Path, policy: CragPolicy) -> GateResult:
     )
     return GateResult(
         name="structure",
+        passed=not violations,
+        violations=violations,
+        violation_count=len(violations),
+    )
+
+
+def _critical_tests_gate(root: Path, policy: CragPolicy) -> GateResult:
+    violations = critical_tests.check_critical_tests(
+        root,
+        policy.source_paths,
+        policy.test_paths,
+    )
+    return GateResult(
+        name="critical-tests",
         passed=not violations,
         violations=violations,
         violation_count=len(violations),
