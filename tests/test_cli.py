@@ -60,8 +60,8 @@ def _setup_check(tmp_path: Path, monkeypatch: Any) -> _FakeRunner:
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv(environment.ENV_VAR, raising=False)
     runner = _FakeRunner()
-    monkeypatch.setattr("crag.check.run_command", runner)
-    monkeypatch.setattr("crag.check.secrets.scan_target", lambda root, target: {})
+    monkeypatch.setattr("crag.catalog.run_command", runner)
+    monkeypatch.setattr("crag.catalog.secrets.scan_target", lambda root, target: {})
     return runner
 
 

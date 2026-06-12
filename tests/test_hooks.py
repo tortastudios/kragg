@@ -39,8 +39,8 @@ def _setup(
 ) -> None:
     _make_project(tmp_path)
     monkeypatch.delenv("CRAG_PROJECT_PYTHON", raising=False)
-    monkeypatch.setattr("crag.check.run_command", _fake_runner(failures or {}))
-    monkeypatch.setattr("crag.check.secrets.scan_target", lambda root, target: {})
+    monkeypatch.setattr("crag.catalog.run_command", _fake_runner(failures or {}))
+    monkeypatch.setattr("crag.catalog.secrets.scan_target", lambda root, target: {})
 
 
 def _ruff_failure(tmp_path: Path) -> CompletedCommand:

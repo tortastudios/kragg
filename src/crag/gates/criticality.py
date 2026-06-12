@@ -392,6 +392,18 @@ def write_report(profiles: list[FunctionProfile], output_path: Path) -> None:
     output_path.write_text(format_report(profiles))
 
 
+def read_json(root: Path) -> list[dict[str, object]]:
+    """Read .crag/criticality.json; empty list when missing or invalid."""
+    path = root / ".crag" / "criticality.json"
+    try:
+        data = json.loads(path.read_text())
+    except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(data, list):
+        return []
+    return [entry for entry in data if isinstance(entry, dict)]
+
+
 def write_json(profiles: list[FunctionProfile], output_path: Path) -> None:
     """Write machine-readable criticality data for agents and hooks."""
     payload = [

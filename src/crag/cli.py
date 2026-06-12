@@ -9,8 +9,9 @@ from pathlib import Path
 from typing import cast
 
 from crag import environment, journal, mapping, report, templates
+from crag.catalog import build_check_gates, build_security_gates
 from crag.changes import changed_python_files
-from crag.check import GateSpec, build_check_gates, build_security_gates, run_gates
+from crag.check import GateSpec, run_gates
 from crag.environment import ProjectEnvironment, resolve_project_environment
 from crag.gates import criticality
 from crag.hooks import run_claude_hook

@@ -21,8 +21,9 @@ from pathlib import Path
 from typing import Any, cast
 
 from crag import journal, mapping, report
+from crag.catalog import build_check_gates
 from crag.changes import changed_python_files
-from crag.check import build_check_gates, run_gates
+from crag.check import run_gates
 from crag.environment import resolve_project_environment
 from crag.policy import load_policy
 
