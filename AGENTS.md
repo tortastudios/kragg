@@ -2,7 +2,7 @@
 
 ## Mission
 
-This repository builds `crag`, an opinionated Python guardrails framework and CLI for AI-assisted Python projects. Optimize changes for correctness, safety, and minimal disruption to the public CLI/package behavior.
+This repository builds `kragg`, an opinionated Python guardrails framework and CLI for AI-assisted Python projects. Optimize changes for correctness, safety, and minimal disruption to the public CLI/package behavior.
 
 ## Priority Order
 
@@ -35,23 +35,23 @@ Do not optimize for elegance by expanding scope. Do not optimize for performance
 
 ## Project Map
 
-- `src/crag/cli.py`: CLI command parsing and command orchestration.
-- `src/crag/scaffold.py`: generated project files and initialization logic.
-- `src/crag/gates/`: built-in guardrail checks for complexity, secrets, Halstead metrics, and criticality.
-- `src/crag/policy.py`: `crag.toml` / `[tool.crag]` policy loading and defaults.
-- `src/crag/models.py`: shared result/context data types.
-- `src/crag/runner.py`: external command execution wrapper.
-- `src/crag/environment.py`: project-interpreter resolution for environment-dependent tools (pytest, mypy, pip-audit, deptry).
-- `src/crag/check.py`: gate pipeline engine (GateSpec, run_gates, fast/slow tiers).
-- `src/crag/catalog.py`: assembles the concrete check/security pipelines from the gates.
-- `src/crag/parsers.py`: tool output parsers producing structured violations.
-- `src/crag/report.py`: consolidated reports, JSON schema, text rendering, exit codes.
-- `src/crag/changes.py`: git-based changed-file detection for `--changed`.
-- `src/crag/journal.py`: `.crag/history.jsonl` run journal backing `crag status`.
-- `src/crag/hooks.py`: harness hook adapters (`crag hook claude`).
-- `src/crag/mapping.py`: public-symbol inventory backing `crag map`.
-- `src/crag/brief.py`: reviewable change digest backing `crag brief`.
-- `src/crag/templates.py`: generated source for project kinds and `crag gen module`.
+- `src/kragg/cli.py`: CLI command parsing and command orchestration.
+- `src/kragg/scaffold.py`: generated project files and initialization logic.
+- `src/kragg/gates/`: built-in guardrail checks for complexity, secrets, Halstead metrics, and criticality.
+- `src/kragg/policy.py`: `kragg.toml` / `[tool.kragg]` policy loading and defaults.
+- `src/kragg/models.py`: shared result/context data types.
+- `src/kragg/runner.py`: external command execution wrapper.
+- `src/kragg/environment.py`: project-interpreter resolution for environment-dependent tools (pytest, mypy, pip-audit, deptry).
+- `src/kragg/check.py`: gate pipeline engine (GateSpec, run_gates, fast/slow tiers).
+- `src/kragg/catalog.py`: assembles the concrete check/security pipelines from the gates.
+- `src/kragg/parsers.py`: tool output parsers producing structured violations.
+- `src/kragg/report.py`: consolidated reports, JSON schema, text rendering, exit codes.
+- `src/kragg/changes.py`: git-based changed-file detection for `--changed`.
+- `src/kragg/journal.py`: `.kragg/history.jsonl` run journal backing `kragg status`.
+- `src/kragg/hooks.py`: harness hook adapters (`kragg hook claude`).
+- `src/kragg/mapping.py`: public-symbol inventory backing `kragg map`.
+- `src/kragg/brief.py`: reviewable change digest backing `kragg brief`.
+- `src/kragg/templates.py`: generated source for project kinds and `kragg gen module`.
 - `tests/`: focused unit and CLI tests.
 - `pyproject.toml`: package metadata, CLI entry point, dependencies, and tool configuration.
 
@@ -60,13 +60,13 @@ Update this section when the repo structure changes.
 ## Commands
 
 - Install: `uv sync`
-- Run CLI: `uv run crag --help`
+- Run CLI: `uv run kragg --help`
 - Test: `uv run pytest`
 - Typecheck: `uv run mypy src tests`
 - Lint: `uv run ruff check src tests`
 - Format check: `uv run ruff format --check src tests`
 - Format: `uv run ruff format src tests`
-- Focused guardrail check: `uv run crag check --file <path>`
+- Focused guardrail check: `uv run kragg check --file <path>`
 
 Use the narrowest relevant command first. Run broader validation before claiming completion when practical.
 

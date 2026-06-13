@@ -12,15 +12,15 @@ import ast
 import json
 from pathlib import Path
 
-from crag.gates.criticality import module_name
-from crag.policy import CragPolicy
+from kragg.gates.criticality import module_name
+from kragg.policy import KraggPolicy
 
 MAX_DOC_CHARS = 60
 
 type _Documented = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
 
 
-def build_map(root: Path, policy: CragPolicy) -> list[str]:
+def build_map(root: Path, policy: KraggPolicy) -> list[str]:
     """Return map lines: one per module, indented public symbols beneath."""
     flags = _criticality_flags(root)
     lines: list[str] = []
@@ -113,7 +113,7 @@ def _risk_suffix(qualname: str, flags: dict[str, str]) -> str:
 
 
 def _criticality_flags(root: Path) -> dict[str, str]:
-    path = root / ".crag" / "criticality.json"
+    path = root / ".kragg" / "criticality.json"
     try:
         data = json.loads(path.read_text())
     except (OSError, json.JSONDecodeError):

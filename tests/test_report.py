@@ -1,7 +1,7 @@
 import json
 
-from crag.models import GateResult, Violation
-from crag.report import (
+from kragg.models import GateResult, Violation
+from kragg.report import (
     EXIT_ENVIRONMENT,
     EXIT_GATE_FAILURES,
     EXIT_OK,
@@ -106,17 +106,17 @@ def test_cap_output_keeps_tail() -> None:
     assert capped.endswith("line 99")
 
 
-def test_next_actions_suggest_crag_fix_for_fixable() -> None:
+def test_next_actions_suggest_kragg_fix_for_fixable() -> None:
     result = GateResult(
         name="ruff",
         passed=False,
-        violations=(Violation(message="x", fix_hint="auto-fixable: run `crag fix`"),),
+        violations=(Violation(message="x", fix_hint="auto-fixable: run `kragg fix`"),),
         violation_count=1,
     )
 
     text = render_text(_build([result]))
 
-    assert "run `crag fix` to auto-fix 1 ruff violations" in text
+    assert "run `kragg fix` to auto-fix 1 ruff violations" in text
 
 
 def test_next_actions_surface_environment_fixes() -> None:

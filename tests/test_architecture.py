@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from crag.gates.architecture import check_layers, check_structure
+from kragg.gates.architecture import check_layers, check_structure
 
 LAYERS = ("app.entrypoints", "app.services", "app.domain")
 

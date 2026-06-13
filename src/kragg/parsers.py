@@ -6,7 +6,7 @@ import json
 import re
 from typing import Any, cast
 
-from crag.models import Violation
+from kragg.models import Violation
 
 _MYPY_LINE = re.compile(
     r"^(?P<file>[^:\n]+):(?P<line>\d+)(?::(?P<column>\d+))?:"
@@ -40,7 +40,7 @@ def parse_ruff_json(stdout: str) -> tuple[Violation, ...]:
                 line=location.get("row"),
                 column=location.get("column"),
                 code=item.get("code"),
-                fix_hint="auto-fixable: run `crag fix`" if fixable else None,
+                fix_hint="auto-fixable: run `kragg fix`" if fixable else None,
             )
         )
     return tuple(violations)

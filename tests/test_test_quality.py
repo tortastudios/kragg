@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-from crag.gates.test_quality import check_tests
+from kragg.gates.test_quality import check_tests
 
 
 def _write_test(tmp_path: Path, name: str, content: str) -> None:
@@ -62,9 +62,9 @@ def test_unreferenced_critical_function_is_flagged(tmp_path: Path) -> None:
         "test_ok.py",
         "def test_math() -> None:\n    assert 1 + 1 == 2\n",
     )
-    crag_dir = tmp_path / ".crag"
-    crag_dir.mkdir()
-    (crag_dir / "criticality.json").write_text(
+    kragg_dir = tmp_path / ".kragg"
+    kragg_dir.mkdir()
+    (kragg_dir / "criticality.json").write_text(
         json.dumps(
             [
                 {"name": "app.core.vital", "is_critical": True},
@@ -86,9 +86,9 @@ def test_referenced_critical_function_passes(tmp_path: Path) -> None:
         "test_vital.py",
         "def test_vital_behavior() -> None:\n    assert 'vital'\n",
     )
-    crag_dir = tmp_path / ".crag"
-    crag_dir.mkdir()
-    (crag_dir / "criticality.json").write_text(
+    kragg_dir = tmp_path / ".kragg"
+    kragg_dir.mkdir()
+    (kragg_dir / "criticality.json").write_text(
         json.dumps([{"name": "app.core.vital", "is_critical": True}])
     )
 

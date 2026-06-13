@@ -1,7 +1,7 @@
 import subprocess
 from pathlib import Path
 
-from crag.changes import changed_python_files
+from kragg.changes import changed_python_files
 
 
 def _git(root: Path, *args: str) -> None:

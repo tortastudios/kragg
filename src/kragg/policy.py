@@ -7,7 +7,7 @@ from typing import Any, cast
 
 
 @dataclass(frozen=True)
-class CragPolicy:
+class KraggPolicy:
     """Configuration for the active guardrails policy pack."""
 
     profile: str = "strict-ai-python"
@@ -25,11 +25,11 @@ class CragPolicy:
         return cast(dict[str, object], asdict(self))
 
 
-def load_policy(root: Path) -> CragPolicy:
-    """Load policy from crag.toml, then pyproject [tool.crag], then defaults."""
-    table = _load_crag_table(root)
-    default = CragPolicy()
-    return CragPolicy(
+def load_policy(root: Path) -> KraggPolicy:
+    """Load policy from kragg.toml, then pyproject [tool.kragg], then defaults."""
+    table = _load_kragg_table(root)
+    default = KraggPolicy()
+    return KraggPolicy(
         profile=_get_str(table, "profile", default.profile),
         source_paths=_get_str_tuple(table, "source_paths", default.source_paths),
         test_paths=_get_str_tuple(table, "test_paths", default.test_paths),
@@ -59,8 +59,8 @@ def load_policy(root: Path) -> CragPolicy:
     )
 
 
-def _load_crag_table(root: Path) -> dict[str, object]:
-    standalone = root / "crag.toml"
+def _load_kragg_table(root: Path) -> dict[str, object]:
+    standalone = root / "kragg.toml"
     if standalone.exists():
         return cast(dict[str, object], tomllib.loads(standalone.read_text()))
 
@@ -73,11 +73,11 @@ def _load_crag_table(root: Path) -> dict[str, object]:
     if not isinstance(tool, dict):
         return {}
 
-    crag = tool.get("crag")
-    if not isinstance(crag, dict):
+    kragg = tool.get("kragg")
+    if not isinstance(kragg, dict):
         return {}
 
-    return cast(dict[str, object], crag)
+    return cast(dict[str, object], kragg)
 
 
 def _get_str(table: dict[str, object], key: str, default: str) -> str:

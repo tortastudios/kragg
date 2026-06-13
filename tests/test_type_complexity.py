@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from crag.gates.type_complexity import check_path
+from kragg.gates.type_complexity import check_path
 
 
 def test_type_complexity_flags_nested_shape(tmp_path: Path) -> None:

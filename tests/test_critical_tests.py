@@ -2,7 +2,7 @@ import json
 import subprocess
 from pathlib import Path
 
-from crag.gates.critical_tests import check_critical_tests
+from kragg.gates.critical_tests import check_critical_tests
 
 
 def _git(root: Path, *args: str) -> None:
@@ -27,9 +27,9 @@ def _make_repo(tmp_path: Path) -> None:
     (tests / "test_core.py").write_text("def test_vital() -> None:\n    assert 1\n")
     _git(tmp_path, "add", ".")
     _git(tmp_path, "commit", "-m", "initial")
-    crag_dir = tmp_path / ".crag"
-    crag_dir.mkdir()
-    (crag_dir / "criticality.json").write_text(
+    kragg_dir = tmp_path / ".kragg"
+    kragg_dir.mkdir()
+    (kragg_dir / "criticality.json").write_text(
         json.dumps(
             [
                 {"name": "app.core.vital", "is_critical": True, "fan_in": 6},
@@ -73,7 +73,7 @@ def test_non_critical_change_passes(tmp_path: Path) -> None:
 
 def test_private_critical_functions_are_exempt(tmp_path: Path) -> None:
     _make_repo(tmp_path)
-    (tmp_path / ".crag" / "criticality.json").write_text(
+    (tmp_path / ".kragg" / "criticality.json").write_text(
         json.dumps([{"name": "app.core._hidden", "is_critical": True, "fan_in": 9}])
     )
     (tmp_path / "src" / "app" / "core.py").write_text(

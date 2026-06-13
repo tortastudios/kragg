@@ -59,7 +59,7 @@ def kind_scripts(kind: str, project_name: str, package: str) -> str:
 
 
 def module_files(package: str, module: str) -> dict[str, str]:
-    """Return generated files for `crag gen module <name>`."""
+    """Return generated files for `kragg gen module <name>`."""
     record = _record_name(module)
     return {
         f"src/{package}/domain/{module}.py": _module_domain(module, record),

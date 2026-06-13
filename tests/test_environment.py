@@ -4,12 +4,12 @@ from typing import Any
 
 import pytest
 
-from crag import environment
-from crag.environment import (
+from kragg import environment
+from kragg.environment import (
     resolve_project_environment,
     venv_python,
 )
-from crag.models import CompletedCommand
+from kragg.models import CompletedCommand
 
 
 def _make_python(venv: Path) -> Path:
@@ -65,10 +65,10 @@ def test_resolve_uses_virtual_env(tmp_path: Path, monkeypatch: Any) -> None:
     assert env.source == "VIRTUAL_ENV"
 
 
-def test_resolve_skips_crag_own_environment(tmp_path: Path, monkeypatch: Any) -> None:
+def test_resolve_skips_kragg_own_environment(tmp_path: Path, monkeypatch: Any) -> None:
     _clear_env(monkeypatch)
     monkeypatch.setenv("VIRTUAL_ENV", sys.prefix)
-    monkeypatch.setattr("crag.environment.shutil.which", lambda _: None)
+    monkeypatch.setattr("kragg.environment.shutil.which", lambda _: None)
 
     env = resolve_project_environment(tmp_path)
 
@@ -78,7 +78,7 @@ def test_resolve_skips_crag_own_environment(tmp_path: Path, monkeypatch: Any) ->
 
 def test_resolve_falls_back_to_uv(tmp_path: Path, monkeypatch: Any) -> None:
     _clear_env(monkeypatch)
-    monkeypatch.setattr("crag.environment.shutil.which", lambda _: "/usr/bin/uv")
+    monkeypatch.setattr("kragg.environment.shutil.which", lambda _: "/usr/bin/uv")
 
     env = resolve_project_environment(tmp_path)
 

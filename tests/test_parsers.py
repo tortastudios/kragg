@@ -1,6 +1,6 @@
 import json
 
-from crag.parsers import (
+from kragg.parsers import (
     parse_bandit_json,
     parse_mypy_output,
     parse_pip_audit_json,
@@ -31,7 +31,7 @@ def test_parse_ruff_json() -> None:
     assert violation.file == "src/app/main.py"
     assert violation.line == 4
     assert violation.code == "F401"
-    assert violation.fix_hint == "auto-fixable: run `crag fix`"
+    assert violation.fix_hint == "auto-fixable: run `kragg fix`"
     assert parse_ruff_json("not json") == ()
 
 

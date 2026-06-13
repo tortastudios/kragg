@@ -4,7 +4,7 @@ Two checks:
 
 - every ``test_*`` function must contain at least one assertion
   (``assert``, ``pytest.raises``, or an ``assert_*`` method call)
-- every public critical function (from ``.crag/criticality.json``) must be
+- every public critical function (from ``.kragg/criticality.json``) must be
   referenced by name somewhere in the test suite
 """
 
@@ -13,8 +13,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from crag.gates.criticality import read_json
-from crag.models import Violation
+from kragg.gates.criticality import read_json
+from kragg.models import Violation
 
 type _TestFunction = ast.FunctionDef | ast.AsyncFunctionDef
 

@@ -1,9 +1,9 @@
 """Resolution of the target project's Python environment.
 
-crag itself may be installed globally (pipx, ``uv tool install``) while the
+kragg itself may be installed globally (pipx, ``uv tool install``) while the
 project under check has its own virtual environment. Environment-dependent
 tools (pytest, mypy, pip-audit, deptry) must run on the project interpreter,
-never on crag's own, so they see the project's packages.
+never on kragg's own, so they see the project's packages.
 """
 
 from __future__ import annotations
@@ -15,10 +15,10 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-from crag.models import CompletedCommand
-from crag.runner import run_command
+from kragg.models import CompletedCommand
+from kragg.runner import run_command
 
-ENV_VAR = "CRAG_PROJECT_PYTHON"
+ENV_VAR = "KRAGG_PROJECT_PYTHON"
 
 PROJECT_MODULES: tuple[str, ...] = (
     "pytest",
@@ -68,7 +68,7 @@ class ProjectEnvironment:
 
 
 def resolve_project_environment(root: Path) -> ProjectEnvironment:
-    """Resolve the project interpreter, never falling back to crag's own."""
+    """Resolve the project interpreter, never falling back to kragg's own."""
     override = os.environ.get(ENV_VAR)
     if override:
         path = Path(override)
@@ -94,7 +94,7 @@ def resolve_project_environment(root: Path) -> ProjectEnvironment:
 
 
 def _is_foreign_environment(venv: Path, root: Path) -> bool:
-    """Return True when a venv is crag's own environment outside the project."""
+    """Return True when a venv is kragg's own environment outside the project."""
     prefix = Path(sys.prefix).resolve()
     if prefix != venv.resolve():
         return False

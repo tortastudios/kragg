@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from crag.scaffold import (
+from kragg.scaffold import (
     create_new_project,
     generate_module,
     initialize_project,
@@ -26,7 +26,7 @@ def test_create_new_project_writes_layered_layout(tmp_path: Path) -> None:
     assert (package / "services" / "greeting.py").exists()
     assert (package / "domain" / "messages.py").exists()
     assert (target / "tests" / "test_greeting.py").exists()
-    assert "uv run crag check" in (target / "Makefile").read_text()
+    assert "uv run kragg check" in (target / "Makefile").read_text()
     pyproject = (target / "pyproject.toml").read_text()
     assert (
         'layers = ["demo_app.entrypoints", "demo_app.services", "demo_app.domain"]'
@@ -68,9 +68,9 @@ def test_scaffold_emits_canonical_agent_contract(tmp_path: Path) -> None:
     create_new_project(target, "demo")
 
     agents = (target / "AGENTS.md").read_text()
-    assert "uv run crag check --changed" in agents
+    assert "uv run kragg check --changed" in agents
     assert "exit codes" in agents.lower()
-    assert "crag gen module" in agents
+    assert "kragg gen module" in agents
     assert "AGENTS.md" in (target / "CLAUDE.md").read_text()
     assert (
         '"contextFileName": "AGENTS.md"'
@@ -84,7 +84,7 @@ def test_scaffold_hooks_use_adapter(tmp_path: Path) -> None:
     create_new_project(target, "demo")
 
     settings = (target / ".claude" / "settings.json").read_text()
-    assert "uv run crag hook claude" in settings
+    assert "uv run kragg hook claude" in settings
     assert '"Stop"' in settings
     assert '"SessionStart"' in settings
 
@@ -98,7 +98,7 @@ def test_scaffold_project_env_is_self_sufficient(tmp_path: Path) -> None:
     assert "pytest>=" in pyproject
     assert "pytest-cov>=" in pyproject
     assert "mypy>=" in pyproject
-    assert ".crag/" in (target / ".gitignore").read_text()
+    assert ".kragg/" in (target / ".gitignore").read_text()
 
 
 def test_initialize_project_adds_guardrails_without_skeleton(tmp_path: Path) -> None:
@@ -107,7 +107,7 @@ def test_initialize_project_adds_guardrails_without_skeleton(tmp_path: Path) -> 
     initialize_project(tmp_path)
 
     pyproject = (tmp_path / "pyproject.toml").read_text()
-    assert "[tool.crag]" in pyproject
+    assert "[tool.kragg]" in pyproject
     assert "pytest>=" in pyproject
     assert (tmp_path / "AGENTS.md").exists()
     assert not (tmp_path / "src").exists()

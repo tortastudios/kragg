@@ -3,7 +3,7 @@
 Fast gates (static analysis) all run so one invocation reveals every failure.
 Slow gates (pytest, pip-audit) are skipped when fast gates fail, since their
 results would be invalidated by the fixes anyway. The concrete pipelines are
-assembled in `crag.catalog`.
+assembled in `kragg.catalog`.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 
-from crag.models import GateResult, Violation
+from kragg.models import GateResult, Violation
 
 FAST = "fast"
 SLOW = "slow"

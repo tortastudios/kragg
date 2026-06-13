@@ -9,13 +9,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from crag import journal
-from crag.gates.critical_tests import critical_in_files
-from crag.policy import CragPolicy
-from crag.runner import run_command
+from kragg import journal
+from kragg.gates.critical_tests import critical_in_files
+from kragg.policy import KraggPolicy
+from kragg.runner import run_command
 
 
-def build_brief(root: Path, policy: CragPolicy, since: str | None) -> str | None:
+def build_brief(root: Path, policy: KraggPolicy, since: str | None) -> str | None:
     """Build the markdown brief; None when git is unavailable."""
     base = _resolve_base(root, since)
     if base is None:
@@ -47,7 +47,7 @@ def _changed_files(root: Path, base: str) -> list[str] | None:
     files: list[str] = []
     for raw in [*(changed or []), *(untracked or [])]:
         name = raw.strip()
-        if name and not name.startswith(".crag/") and name not in files:
+        if name and not name.startswith(".kragg/") and name not in files:
             files.append(name)
     return files
 
@@ -68,7 +68,7 @@ def _stats_line(
     return f"{len(changed)} files changed (+{added} / -{deleted}) vs {against}"
 
 
-def _grouped_sections(changed: list[str], policy: CragPolicy) -> list[str]:
+def _grouped_sections(changed: list[str], policy: KraggPolicy) -> list[str]:
     groups: dict[str, list[str]] = {"Source": [], "Tests": [], "Other": []}
     for name in changed:
         groups[_area(name, policy)].append(name)
@@ -81,7 +81,7 @@ def _grouped_sections(changed: list[str], policy: CragPolicy) -> list[str]:
     return lines
 
 
-def _area(name: str, policy: CragPolicy) -> str:
+def _area(name: str, policy: KraggPolicy) -> str:
     path = Path(name)
     if any(path.is_relative_to(prefix) for prefix in policy.source_paths):
         return "Source"
@@ -92,7 +92,7 @@ def _area(name: str, policy: CragPolicy) -> str:
 
 def _critical_section(
     root: Path,
-    policy: CragPolicy,
+    policy: KraggPolicy,
     changed: list[str],
 ) -> list[str]:
     python_files = [name for name in changed if name.endswith(".py")]
@@ -115,7 +115,7 @@ def _gate_section(root: Path) -> list[str]:
     if runs:
         lines.extend(journal.render_status_lines(runs))
     else:
-        lines.append("no recorded runs (run `uv run crag check`)")
+        lines.append("no recorded runs (run `uv run kragg check`)")
     return lines
 
 

@@ -6,14 +6,14 @@ import sys
 from dataclasses import replace
 from pathlib import Path
 
-from crag.check import FAST, SLOW, GateSpec, OutputParser
-from crag.environment import (
+from kragg.check import FAST, SLOW, GateSpec, OutputParser
+from kragg.environment import (
     ProjectEnvironment,
     missing_interpreter_message,
     missing_module,
     remediation,
 )
-from crag.gates import (
+from kragg.gates import (
     architecture,
     critical_tests,
     halstead,
@@ -21,8 +21,8 @@ from crag.gates import (
     test_quality,
     type_complexity,
 )
-from crag.models import GateResult, Violation
-from crag.parsers import (
+from kragg.models import GateResult, Violation
+from kragg.parsers import (
     parse_bandit_json,
     parse_mypy_output,
     parse_pip_audit_json,
@@ -31,18 +31,18 @@ from crag.parsers import (
     parse_radon_mi,
     parse_ruff_json,
 )
-from crag.policy import CragPolicy
-from crag.runner import run_command
+from kragg.policy import KraggPolicy
+from kragg.runner import run_command
 
 
 def build_check_gates(
     root: Path,
-    policy: CragPolicy,
+    policy: KraggPolicy,
     env: ProjectEnvironment,
     targets: tuple[str, ...],
     incremental: bool = False,
 ) -> list[GateSpec]:
-    """Assemble the full `crag check` pipeline."""
+    """Assemble the full `kragg check` pipeline."""
     slow_skip = "incremental mode" if incremental else None
     pytest_args = (
         "--cov=src",
@@ -80,8 +80,8 @@ def build_check_gates(
             lambda: _critical_tests_gate(root, policy),
             skip_reason=(
                 None
-                if (root / ".crag" / "criticality.json").exists()
-                else "no criticality data (run `crag criticality --write`)"
+                if (root / ".kragg" / "criticality.json").exists()
+                else "no criticality data (run `kragg criticality --write`)"
             ),
         ),
         GateSpec("test-quality", FAST, lambda: _test_quality_gate(root, policy)),
@@ -122,7 +122,7 @@ def build_security_gates(
     targets: tuple[str, ...],
     incremental: bool = False,
 ) -> list[GateSpec]:
-    """Assemble the `crag security` pipeline."""
+    """Assemble the `kragg security` pipeline."""
     slow_skip = "incremental mode" if incremental else None
     return [
         GateSpec("bandit", FAST, lambda: _bandit_gate(root, targets)),
@@ -215,7 +215,7 @@ def _command_gate(
 
 
 def _ruff_gate(root: Path, targets: tuple[str, ...]) -> GateResult:
-    command = _crag_module("ruff", "check", "--output-format", "json", *targets)
+    command = _kragg_module("ruff", "check", "--output-format", "json", *targets)
 
     def parse(stdout: str) -> tuple[Violation, ...]:
         return tuple(_relative_to_root(v, root) for v in parse_ruff_json(stdout))
@@ -233,7 +233,7 @@ def _relative_to_root(violation: Violation, root: Path) -> Violation:
 
 
 def _radon_cc_gate(root: Path, targets: tuple[str, ...]) -> GateResult:
-    command = _crag_module("radon", "cc", *targets, "-s", "-n", "C")
+    command = _kragg_module("radon", "cc", *targets, "-s", "-n", "C")
     result = run_command("radon-cc", command, root)
     violations = parse_radon_cc(result.stdout)
     passed = result.passed and not result.stdout.strip()
@@ -248,7 +248,7 @@ def _radon_cc_gate(root: Path, targets: tuple[str, ...]) -> GateResult:
 
 
 def _radon_mi_gate(root: Path, targets: tuple[str, ...]) -> GateResult:
-    command = _crag_module("radon", "mi", *targets, "-s")
+    command = _kragg_module("radon", "mi", *targets, "-s")
     result = run_command("radon-mi", command, root)
     violations = parse_radon_mi(result.stdout)
     passed = result.passed and not violations
@@ -288,7 +288,7 @@ def _halstead_gate(root: Path, targets: tuple[str, ...]) -> GateResult:
 
 def _type_complexity_gate(
     root: Path,
-    policy: CragPolicy,
+    policy: KraggPolicy,
     targets: tuple[str, ...],
 ) -> GateResult:
     violations: list[Violation] = []
@@ -319,7 +319,7 @@ def _type_complexity_gate(
     )
 
 
-def _boundaries_gate(root: Path, policy: CragPolicy) -> GateResult:
+def _boundaries_gate(root: Path, policy: KraggPolicy) -> GateResult:
     violations = architecture.check_layers(root, policy.source_paths, policy.layers)
     return GateResult(
         name="boundaries",
@@ -329,7 +329,7 @@ def _boundaries_gate(root: Path, policy: CragPolicy) -> GateResult:
     )
 
 
-def _structure_gate(root: Path, policy: CragPolicy) -> GateResult:
+def _structure_gate(root: Path, policy: KraggPolicy) -> GateResult:
     violations = architecture.check_structure(
         root,
         policy.source_paths,
@@ -344,7 +344,7 @@ def _structure_gate(root: Path, policy: CragPolicy) -> GateResult:
     )
 
 
-def _critical_tests_gate(root: Path, policy: CragPolicy) -> GateResult:
+def _critical_tests_gate(root: Path, policy: KraggPolicy) -> GateResult:
     violations = critical_tests.check_critical_tests(
         root,
         policy.source_paths,
@@ -358,7 +358,7 @@ def _critical_tests_gate(root: Path, policy: CragPolicy) -> GateResult:
     )
 
 
-def _test_quality_gate(root: Path, policy: CragPolicy) -> GateResult:
+def _test_quality_gate(root: Path, policy: KraggPolicy) -> GateResult:
     violations = test_quality.check_tests(root, policy.test_paths)
     return GateResult(
         name="test-quality",
@@ -372,7 +372,7 @@ def _bandit_gate(root: Path, targets: tuple[str, ...]) -> GateResult:
     args = ["-ll", "-r", *targets, "-f", "json"]
     if (root / "pyproject.toml").exists():
         args = ["-c", "pyproject.toml", *args]
-    command = _crag_module("bandit", *args)
+    command = _kragg_module("bandit", *args)
     return _command_gate("bandit", command, root, parse_bandit_json, error_codes=(2,))
 
 
@@ -425,7 +425,7 @@ def _scan_secrets(
     return tuple(violations)
 
 
-def _crag_module(module: str, *args: str) -> list[str]:
+def _kragg_module(module: str, *args: str) -> list[str]:
     return [sys.executable, "-m", module, *args]
 
 

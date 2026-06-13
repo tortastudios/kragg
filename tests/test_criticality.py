@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from crag.gates.criticality import analyze, build_call_graph, format_report, write_json
+from kragg.gates.criticality import analyze, build_call_graph, format_report, write_json
 
 CORE_PY = """
 def helper() -> None:
@@ -90,7 +90,7 @@ def test_format_report_sections(tmp_path: Path) -> None:
 
 def test_write_json(tmp_path: Path) -> None:
     profiles = analyze(_make_package(tmp_path), fan_in_threshold=2)
-    output = tmp_path / ".crag" / "criticality.json"
+    output = tmp_path / ".kragg" / "criticality.json"
 
     write_json(profiles, output)
 

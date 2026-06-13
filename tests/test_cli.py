@@ -3,10 +3,10 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from crag import environment
-from crag.cli import main
-from crag.environment import venv_python
-from crag.models import CompletedCommand
+from kragg import environment
+from kragg.cli import main
+from kragg.environment import venv_python
+from kragg.models import CompletedCommand
 
 
 def test_policy_show_returns_success(tmp_path: Path, monkeypatch: Any) -> None:
@@ -60,8 +60,8 @@ def _setup_check(tmp_path: Path, monkeypatch: Any) -> _FakeRunner:
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv(environment.ENV_VAR, raising=False)
     runner = _FakeRunner()
-    monkeypatch.setattr("crag.catalog.run_command", runner)
-    monkeypatch.setattr("crag.catalog.secrets.scan_target", lambda root, target: {})
+    monkeypatch.setattr("kragg.catalog.run_command", runner)
+    monkeypatch.setattr("kragg.catalog.secrets.scan_target", lambda root, target: {})
     return runner
 
 
@@ -176,7 +176,7 @@ def test_check_without_project_interpreter_exits_3(
     del runner  # gates still run; env-dependent ones error
     venv_python(tmp_path / ".venv").unlink()
     monkeypatch.delenv("VIRTUAL_ENV", raising=False)
-    monkeypatch.setattr("crag.environment.shutil.which", lambda _: None)
+    monkeypatch.setattr("kragg.environment.shutil.which", lambda _: None)
 
     assert main(["check"]) == 3
 
@@ -188,7 +188,7 @@ def test_check_changed_outside_git_repo_exits_3(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
     _setup_check(tmp_path, monkeypatch)
-    monkeypatch.setattr("crag.cli.changed_python_files", lambda *a: None)
+    monkeypatch.setattr("kragg.cli.changed_python_files", lambda *a: None)
 
     assert main(["check", "--changed"]) == 3
 
@@ -197,7 +197,7 @@ def test_check_changed_with_no_files_is_a_cheap_pass(
     tmp_path: Path, monkeypatch: Any, capsys: Any
 ) -> None:
     _setup_check(tmp_path, monkeypatch)
-    monkeypatch.setattr("crag.cli.changed_python_files", lambda *a: [])
+    monkeypatch.setattr("kragg.cli.changed_python_files", lambda *a: [])
 
     assert main(["check", "--changed"]) == 0
     assert "no changed Python files" in capsys.readouterr().out
@@ -243,7 +243,7 @@ def test_new_refuses_non_empty_target(tmp_path: Path, monkeypatch: Any) -> None:
     assert main(["new", "demo", "--no-sync"]) == 1
 
 
-def test_init_adds_crag_files(tmp_path: Path, monkeypatch: Any) -> None:
+def test_init_adds_kragg_files(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.chdir(tmp_path)
     (tmp_path / "pyproject.toml").write_text('[project]\nname = "existing"\n')
 
@@ -255,7 +255,7 @@ def test_fix_runs_format_and_safe_fixes(tmp_path: Path, monkeypatch: Any) -> Non
     _make_project(tmp_path)
     monkeypatch.chdir(tmp_path)
     runner = _FakeRunner()
-    monkeypatch.setattr("crag.cli.run_command", runner)
+    monkeypatch.setattr("kragg.cli.run_command", runner)
 
     assert main(["fix"]) == 0
 
@@ -282,7 +282,7 @@ def test_doctor_reports_missing_project_tools(
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv(environment.ENV_VAR, raising=False)
     probed = {name: name != "mypy" for name in environment.PROJECT_MODULES}
-    monkeypatch.setattr("crag.environment.probe_modules", lambda env, modules: probed)
+    monkeypatch.setattr("kragg.environment.probe_modules", lambda env, modules: probed)
 
     assert main(["doctor"]) == 1
 

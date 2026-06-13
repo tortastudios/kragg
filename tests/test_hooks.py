@@ -2,9 +2,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from crag.environment import venv_python
-from crag.hooks import run_claude_hook
-from crag.models import CompletedCommand
+from kragg.environment import venv_python
+from kragg.hooks import run_claude_hook
+from kragg.models import CompletedCommand
 
 
 def _make_project(tmp_path: Path) -> None:
@@ -38,9 +38,9 @@ def _setup(
     tmp_path: Path, monkeypatch: Any, failures: dict[str, Any] | None = None
 ) -> None:
     _make_project(tmp_path)
-    monkeypatch.delenv("CRAG_PROJECT_PYTHON", raising=False)
-    monkeypatch.setattr("crag.catalog.run_command", _fake_runner(failures or {}))
-    monkeypatch.setattr("crag.catalog.secrets.scan_target", lambda root, target: {})
+    monkeypatch.delenv("KRAGG_PROJECT_PYTHON", raising=False)
+    monkeypatch.setattr("kragg.catalog.run_command", _fake_runner(failures or {}))
+    monkeypatch.setattr("kragg.catalog.secrets.scan_target", lambda root, target: {})
 
 
 def _ruff_failure(tmp_path: Path) -> CompletedCommand:
@@ -119,7 +119,7 @@ def test_stop_blocks_when_full_check_fails(
 
     decision = json.loads(capsys.readouterr().out)
     assert decision["decision"] == "block"
-    assert "crag check must pass" in decision["reason"]
+    assert "kragg check must pass" in decision["reason"]
 
 
 def test_stop_honors_stop_hook_active(tmp_path: Path, capsys: Any) -> None:
@@ -132,9 +132,9 @@ def test_stop_honors_stop_hook_active(tmp_path: Path, capsys: Any) -> None:
 def test_session_start_reports_status_and_critical_functions(
     tmp_path: Path, capsys: Any
 ) -> None:
-    crag_dir = tmp_path / ".crag"
-    crag_dir.mkdir()
-    (crag_dir / "history.jsonl").write_text(
+    kragg_dir = tmp_path / ".kragg"
+    kragg_dir.mkdir()
+    (kragg_dir / "history.jsonl").write_text(
         json.dumps(
             {
                 "passed": False,
@@ -155,7 +155,7 @@ def test_session_start_reports_status_and_critical_functions(
         )
         + "\n"
     )
-    (crag_dir / "criticality.json").write_text(
+    (kragg_dir / "criticality.json").write_text(
         json.dumps(
             [
                 {"name": "demo.core.run", "is_critical": True},

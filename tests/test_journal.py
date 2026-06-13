@@ -2,9 +2,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from crag.journal import append_run, journal_path, read_runs
-from crag.models import GateResult
-from crag.report import ReportPayload, build_report, to_payload
+from kragg.journal import append_run, journal_path, read_runs
+from kragg.models import GateResult
+from kragg.report import ReportPayload, build_report, to_payload
 
 
 def _payload(passed: bool = True) -> ReportPayload:
@@ -56,7 +56,7 @@ def test_rotation_keeps_recent_lines(tmp_path: Path) -> None:
 
 
 def test_append_never_raises_when_unwritable(tmp_path: Path) -> None:
-    (tmp_path / ".crag").write_text("a file, not a directory")
+    (tmp_path / ".kragg").write_text("a file, not a directory")
 
     append_run(tmp_path, _payload())
 

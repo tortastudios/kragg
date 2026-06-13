@@ -8,22 +8,22 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import cast
 
-from crag import brief, environment, journal, mapping, report, templates
-from crag.catalog import build_check_gates, build_security_gates
-from crag.changes import changed_python_files
-from crag.check import GateSpec, run_gates
-from crag.environment import ProjectEnvironment, resolve_project_environment
-from crag.gates import criticality
-from crag.hooks import run_claude_hook
-from crag.models import CompletedCommand
-from crag.policy import CragPolicy, load_policy
-from crag.report import EXIT_ENVIRONMENT, EXIT_OK, EXIT_USAGE
-from crag.runner import run_command
-from crag.scaffold import create_new_project, generate_module, initialize_project
+from kragg import brief, environment, journal, mapping, report, templates
+from kragg.catalog import build_check_gates, build_security_gates
+from kragg.changes import changed_python_files
+from kragg.check import GateSpec, run_gates
+from kragg.environment import ProjectEnvironment, resolve_project_environment
+from kragg.gates import criticality
+from kragg.hooks import run_claude_hook
+from kragg.models import CompletedCommand
+from kragg.policy import KraggPolicy, load_policy
+from kragg.report import EXIT_ENVIRONMENT, EXIT_OK, EXIT_USAGE
+from kragg.runner import run_command
+from kragg.scaffold import create_new_project, generate_module, initialize_project
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run the crag command-line interface."""
+    """Run the kragg command-line interface."""
     parser = build_parser()
     args = parser.parse_args(argv)
     handler = cast(
@@ -38,7 +38,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI parser."""
-    parser = argparse.ArgumentParser(prog="crag")
+    parser = argparse.ArgumentParser(prog="kragg")
     subparsers = parser.add_subparsers(dest="command")
 
     new_parser = subparsers.add_parser("new", help="create a new project")
@@ -52,7 +52,7 @@ def build_parser() -> argparse.ArgumentParser:
     gen_parser.add_argument("name")
     gen_parser.set_defaults(handler=cmd_gen)
 
-    init_parser = subparsers.add_parser("init", help="add crag to a project")
+    init_parser = subparsers.add_parser("init", help="add kragg to a project")
     init_parser.add_argument("path", nargs="?", default=".")
     init_parser.set_defaults(handler=cmd_init)
 
@@ -137,7 +137,7 @@ def cmd_new(args: argparse.Namespace) -> int:
         _sync_new_project(target)
     print("Next steps:")
     print(f"  cd {args.name}")
-    print("  uv run crag check")
+    print("  uv run kragg check")
     return 0
 
 
@@ -163,14 +163,14 @@ def cmd_gen(args: argparse.Namespace) -> int:
         return 1
     for path in written:
         print(f"Wrote {path.relative_to(root)}")
-    print("Run `uv run crag check` after filling in the slots.")
+    print("Run `uv run kragg check` after filling in the slots.")
     return 0
 
 
 def cmd_init(args: argparse.Namespace) -> int:
     root = Path(args.path).resolve()
     written = initialize_project(root)
-    print(f"Initialized crag in {root}")
+    print(f"Initialized kragg in {root}")
     print(f"Wrote {len(written)} files")
     return 0
 
@@ -207,7 +207,7 @@ def cmd_security(args: argparse.Namespace) -> int:
 def _check_targets(
     args: argparse.Namespace,
     root: Path,
-    policy: CragPolicy,
+    policy: KraggPolicy,
 ) -> tuple[tuple[str, ...], str] | None:
     if args.changed or args.since:
         allowed = (*policy.source_paths, *policy.test_paths)
@@ -236,7 +236,7 @@ def _run_pipeline(
     command: str,
     args: argparse.Namespace,
     root: Path,
-    policy: CragPolicy,
+    policy: KraggPolicy,
     specs: list[GateSpec],
     targets: tuple[str, ...],
     mode: str,
@@ -311,8 +311,8 @@ def cmd_criticality(args: argparse.Namespace) -> int:
     if args.write:
         output = root / "CRITICALITY.md"
         criticality.write_report(profiles, output)
-        criticality.write_json(profiles, root / ".crag" / "criticality.json")
-        print(f"Wrote {output} and .crag/criticality.json")
+        criticality.write_json(profiles, root / ".kragg" / "criticality.json")
+        print(f"Wrote {output} and .kragg/criticality.json")
     else:
         criticality.print_table(profiles)
     return 0
@@ -336,7 +336,7 @@ def cmd_map(args: argparse.Namespace) -> int:
         return 0
     print("\n".join(lines))
     if args.write:
-        output = root / ".crag" / "map.md"
+        output = root / ".kragg" / "map.md"
         mapping.write_map(lines, output)
         print(f"Wrote {output}")
     return 0
@@ -355,7 +355,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         print(json.dumps({"last_run": last_run, "runs": runs}, indent=1))
         return 0
     if not runs:
-        print("no recorded runs (run `crag check` first)")
+        print("no recorded runs (run `kragg check` first)")
         return 0
     for line in journal.render_status_lines(runs):
         print(line)
@@ -383,7 +383,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 
 def _doctor_environment(root: Path) -> bool:
-    print(f"crag interpreter: {sys.executable}")
+    print(f"kragg interpreter: {sys.executable}")
     env = _project_environment(root)
     if env is None:
         return False
@@ -394,9 +394,9 @@ def _doctor_environment(root: Path) -> bool:
         )
         return False
     print(f"project interpreter: {env.describe()}")
-    crag_prefix = Path(sys.prefix).resolve()
-    if env.python is not None and env.python.parent.parent.resolve() == crag_prefix:
-        print("note: crag runs inside the project environment (dev-dependency mode)")
+    kragg_prefix = Path(sys.prefix).resolve()
+    if env.python is not None and env.python.parent.parent.resolve() == kragg_prefix:
+        print("note: kragg runs inside the project environment (dev-dependency mode)")
     if not (root / "pyproject.toml").exists():
         print("project env tools: skipped (no pyproject.toml)")
         return True

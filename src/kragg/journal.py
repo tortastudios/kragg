@@ -1,4 +1,4 @@
-"""Local run journal: .crag/history.jsonl, one slim line per check run.
+"""Local run journal: .kragg/history.jsonl, one slim line per check run.
 
 Telemetry must never fail a check: every write path swallows OSError.
 """
@@ -9,9 +9,9 @@ import json
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
-from crag.report import ReportPayload
+from kragg.report import ReportPayload
 
-JOURNAL_DIR = ".crag"
+JOURNAL_DIR = ".kragg"
 JOURNAL_FILE = "history.jsonl"
 MAX_LINES = 1000
 KEEP_LINES = 500
@@ -88,7 +88,7 @@ def read_runs(root: Path, last: int) -> list[dict[str, Any]]:
 
 
 def render_status_lines(runs: list[dict[str, Any]]) -> list[str]:
-    """Summarize recorded runs for `crag status` text output."""
+    """Summarize recorded runs for `kragg status` text output."""
     last = runs[-1]
     lines = [_summary_line(last)]
     failing = _failing_line(last)

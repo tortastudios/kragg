@@ -1,4 +1,4 @@
-from crag.gates.secrets import SecretFinding, find_new_secrets
+from kragg.gates.secrets import SecretFinding, find_new_secrets
 
 
 def test_find_new_secrets_ignores_baseline_hashes() -> None:

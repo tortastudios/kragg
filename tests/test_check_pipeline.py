@@ -1,5 +1,5 @@
-from crag.check import FAST, SLOW, GateSpec, run_gates
-from crag.models import GateResult
+from kragg.check import FAST, SLOW, GateSpec, run_gates
+from kragg.models import GateResult
 
 
 def _spec(

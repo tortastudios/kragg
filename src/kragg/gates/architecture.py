@@ -1,6 +1,6 @@
 """Architecture gates: layered import contracts and structural budgets.
 
-Layers are declared top-to-bottom in ``[tool.crag] layers`` as module
+Layers are declared top-to-bottom in ``[tool.kragg] layers`` as module
 prefixes, e.g. ``["app.entrypoints", "app.services", "app.domain"]``.
 A module in a layer may import its own layer or lower layers, never a
 higher one. Modules outside every layer are unrestricted.
@@ -14,8 +14,8 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from crag.gates.criticality import module_imports, module_name
-from crag.models import Violation
+from kragg.gates.criticality import module_imports, module_name
+from kragg.models import Violation
 
 
 def check_layers(

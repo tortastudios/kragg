@@ -1,6 +1,6 @@
 """Gate: critical functions must not change without test changes.
 
-Reads `.crag/criticality.json` (written by `crag criticality --write`) and
+Reads `.kragg/criticality.json` (written by `kragg criticality --write`) and
 the git working-tree change set. If a changed source file defines a public
 critical function and no test file changed alongside it, the gate fails.
 Private symbols are exempt; outside a git repository the gate passes.
@@ -11,9 +11,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from crag.changes import changed_python_files
-from crag.gates.criticality import module_name
-from crag.models import Violation
+from kragg.changes import changed_python_files
+from kragg.gates.criticality import module_name
+from kragg.models import Violation
 
 
 def check_critical_tests(
@@ -66,7 +66,7 @@ def critical_in_files(
 
 
 def _critical_entries(root: Path) -> list[tuple[str, int]]:
-    path = root / ".crag" / "criticality.json"
+    path = root / ".kragg" / "criticality.json"
     try:
         data = json.loads(path.read_text())
     except (OSError, json.JSONDecodeError):

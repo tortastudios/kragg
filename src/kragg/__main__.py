@@ -1,4 +1,4 @@
-from crag.cli import main
+from kragg.cli import main
 
 if __name__ == "__main__":
     raise SystemExit(main())

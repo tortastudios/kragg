@@ -9,8 +9,8 @@ from importlib import metadata
 from pathlib import Path
 from typing import TypedDict
 
-from crag.models import GateResult, Violation
-from crag.runner import run_command
+from kragg.models import GateResult, Violation
+from kragg.runner import run_command
 
 SCHEMA_VERSION = 1
 
@@ -57,7 +57,7 @@ class SummaryPayload(TypedDict):
 
 class ReportPayload(TypedDict):
     schema_version: int
-    crag_version: str
+    kragg_version: str
     command: str
     mode: str
     targets: list[str]
@@ -185,7 +185,7 @@ def to_payload(report: CheckReport) -> ReportPayload:
     gates = [_gate_payload(gate) for gate in report.gates]
     return ReportPayload(
         schema_version=SCHEMA_VERSION,
-        crag_version=crag_version(),
+        kragg_version=kragg_version(),
         command=report.command,
         mode=report.mode,
         targets=list(report.targets),
@@ -246,11 +246,11 @@ def next_actions(report: CheckReport) -> list[str]:
     actions = _environment_fixes(report)
     fixable = _auto_fixable_count(report)
     if fixable:
-        actions.append(f"run `crag fix` to auto-fix {fixable} ruff violations")
+        actions.append(f"run `kragg fix` to auto-fix {fixable} ruff violations")
     if not report.passed and not actions:
         actions.append(
             "fix the violations at the file:line locations above, "
-            f"then re-run `crag {report.command}`"
+            f"then re-run `kragg {report.command}`"
         )
     return actions
 
@@ -327,9 +327,9 @@ def _render_violation_text(violation: Violation) -> str:
     return text
 
 
-def crag_version() -> str:
+def kragg_version() -> str:
     try:
-        return metadata.version("crag")
+        return metadata.version("kragg")
     except metadata.PackageNotFoundError:
         return "unknown"
 

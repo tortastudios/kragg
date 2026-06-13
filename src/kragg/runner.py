@@ -4,7 +4,7 @@ import subprocess
 from collections.abc import Sequence
 from pathlib import Path
 
-from crag.models import CompletedCommand
+from kragg.models import CompletedCommand
 
 
 def run_command(name: str, command: Sequence[str], cwd: Path) -> CompletedCommand:

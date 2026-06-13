@@ -2,8 +2,8 @@ import json
 import subprocess
 from pathlib import Path
 
-from crag.brief import build_brief
-from crag.policy import CragPolicy
+from kragg.brief import build_brief
+from kragg.policy import KraggPolicy
 
 
 def _git(root: Path, *args: str) -> None:
@@ -34,9 +34,9 @@ def _make_repo(tmp_path: Path) -> None:
 
 def test_brief_groups_changes_and_names_critical_functions(tmp_path: Path) -> None:
     _make_repo(tmp_path)
-    crag_dir = tmp_path / ".crag"
-    crag_dir.mkdir()
-    (crag_dir / "criticality.json").write_text(
+    kragg_dir = tmp_path / ".kragg"
+    kragg_dir.mkdir()
+    (kragg_dir / "criticality.json").write_text(
         json.dumps([{"name": "app.core.vital", "is_critical": True, "fan_in": 6}])
     )
     (tmp_path / "src" / "app" / "core.py").write_text(
@@ -47,7 +47,7 @@ def test_brief_groups_changes_and_names_critical_functions(tmp_path: Path) -> No
     )
     (tmp_path / "README.md").write_text("updated\n")
 
-    text = build_brief(tmp_path, CragPolicy(), since=None)
+    text = build_brief(tmp_path, KraggPolicy(), since=None)
 
     assert text is not None
     assert "# Change brief" in text
@@ -62,7 +62,7 @@ def test_brief_groups_changes_and_names_critical_functions(tmp_path: Path) -> No
 def test_brief_with_clean_tree(tmp_path: Path) -> None:
     _make_repo(tmp_path)
 
-    text = build_brief(tmp_path, CragPolicy(), since=None)
+    text = build_brief(tmp_path, KraggPolicy(), since=None)
 
     assert text is not None
     assert "0 files changed" in text
@@ -76,7 +76,7 @@ def test_brief_since_ref(tmp_path: Path) -> None:
     _git(tmp_path, "add", ".")
     _git(tmp_path, "commit", "-m", "more")
 
-    text = build_brief(tmp_path, CragPolicy(), since="base")
+    text = build_brief(tmp_path, KraggPolicy(), since="base")
 
     assert text is not None
     assert "src/app/extra.py" in text
@@ -84,4 +84,4 @@ def test_brief_since_ref(tmp_path: Path) -> None:
 
 
 def test_brief_outside_git_returns_none(tmp_path: Path) -> None:
-    assert build_brief(tmp_path, CragPolicy(), since=None) is None
+    assert build_brief(tmp_path, KraggPolicy(), since=None) is None

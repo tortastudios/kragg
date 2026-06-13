@@ -1,11 +1,11 @@
-"""Changed-file detection for incremental checks (`crag check --changed`)."""
+"""Changed-file detection for incremental checks (`kragg check --changed`)."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
 
-from crag.runner import run_command
+from kragg.runner import run_command
 
 
 def changed_python_files(

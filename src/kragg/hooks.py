@@ -1,6 +1,6 @@
 """Harness hook adapters.
 
-`crag hook claude` reads Claude Code's hook JSON from stdin, dispatches on
+`kragg hook claude` reads Claude Code's hook JSON from stdin, dispatches on
 the event, and answers in the protocol the harness understands:
 
 - PostToolUse: incremental check on the edited file; failures emit a
@@ -10,7 +10,7 @@ the event, and answers in the protocol the harness understands:
   ``stop_hook_active`` is honored to prevent infinite stop loops.
 - SessionStart: emits last-run status and critical functions as context.
 
-Hooks fail open: any unexpected error exits 0 so a crag bug never wedges
+Hooks fail open: any unexpected error exits 0 so a kragg bug never wedges
 the harness.
 """
 
@@ -20,12 +20,12 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
-from crag import journal, mapping, report
-from crag.catalog import build_check_gates
-from crag.changes import changed_python_files
-from crag.check import run_gates
-from crag.environment import resolve_project_environment
-from crag.policy import load_policy
+from kragg import journal, mapping, report
+from kragg.catalog import build_check_gates
+from kragg.changes import changed_python_files
+from kragg.check import run_gates
+from kragg.environment import resolve_project_environment
+from kragg.policy import load_policy
 
 
 def run_claude_hook(stdin_text: str, root: Path) -> int:
@@ -61,7 +61,7 @@ def _post_edit(data: dict[str, Any], root: Path) -> int:
     built = _run_check(root, targets, incremental=True)
     if built is None or built.passed:
         return 0
-    _block(f"crag gates failed:\n{report.render_text(built)}")
+    _block(f"kragg gates failed:\n{report.render_text(built)}")
     return 0
 
 
@@ -72,7 +72,7 @@ def _stop(data: dict[str, Any], root: Path) -> int:
     built = _run_check(root, (policy.source_paths[0],), incremental=False)
     if built is None or built.passed:
         return 0
-    _block(f"crag check must pass before finishing:\n{report.render_text(built)}")
+    _block(f"kragg check must pass before finishing:\n{report.render_text(built)}")
     return 0
 
 
@@ -101,7 +101,7 @@ def _print_map_digest(root: Path) -> None:
     for line in lines[:MAX_MAP_LINES]:
         print(line)
     if len(lines) > MAX_MAP_LINES:
-        print(f"  … {len(lines) - MAX_MAP_LINES} more — run `uv run crag map`")
+        print(f"  … {len(lines) - MAX_MAP_LINES} more — run `uv run kragg map`")
 
 
 def _edit_targets(data: dict[str, Any], root: Path) -> tuple[str, ...]:
@@ -146,7 +146,7 @@ def _block(reason: str) -> None:
 
 
 def _critical_functions(root: Path, limit: int = 8) -> list[str]:
-    path = root / ".crag" / "criticality.json"
+    path = root / ".kragg" / "criticality.json"
     try:
         data = json.loads(path.read_text())
     except (OSError, json.JSONDecodeError):
