@@ -7,10 +7,10 @@ requires-python = ">=3.12"
 license = "MIT"
 license-files = ["LICENSE"]
 authors = [
-    { name = "Torta Studios, LLC" },
+    { name = "Torta Studios, LLC", email = "tech@tortastudios.com" },
 ]
 maintainers = [
-    { name = "Torta Studios, LLC" },
+    { name = "Torta Studios, LLC", email = "tech@tortastudios.com" },
 ]
 keywords = [
     "guardrails",
@@ -51,6 +51,8 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://tortastudios.com"
+Repository = "https://github.com/tortastudios/kragg"
+Issues = "https://github.com/tortastudios/kragg/issues"
 
 [project.scripts]
 kragg = "kragg.cli:main"
