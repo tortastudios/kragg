@@ -93,6 +93,12 @@ actually defend behavior":
 Mutation and active flaky runs are deliberately outside `kragg check`: they are
 on-demand or CI surfaces, not inner-loop gates.
 
+`kragg mutation` runs cosmic-ray on the project interpreter, so add it to the
+project being checked (`uv add --dev cosmic-ray`); kragg prints the exact
+command if it is missing. Property-based tests use Hypothesis
+(`uv add --dev hypothesis`). Mutation needs an editable/source install so it
+mutates the code the tests import.
+
 ## Agent-native design
 
 Agents drift where they have freedom, so the scaffold removes the freedom:
