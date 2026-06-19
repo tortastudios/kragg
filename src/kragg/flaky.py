@@ -12,7 +12,13 @@ Meta-style re-run mode lives alongside it for cron/CI use, never as a gate.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
+
+from kragg.environment import ProjectEnvironment
+from kragg.parsers import parse_failed_test_ids
+from kragg.policy import KraggPolicy
+from kragg.runner import run_command
 
 
 @dataclass(frozen=True)
@@ -79,3 +85,59 @@ def _record(tallies: dict[str, _Tally], sha: str, gate: dict[Any, Any]) -> None:
         tally.passed += 1
     else:
         tally.failed += 1
+
+
+@dataclass(frozen=True)
+class FlakyTest:
+    """A test that failed intermittently across repeated runs."""
+
+    test_id: str
+    failures: int
+    runs: int
+
+    @property
+    def ratio(self) -> float:
+        return self.failures / self.runs if self.runs else 0.0
+
+
+def run_reruns(
+    root: Path,
+    env: ProjectEnvironment,
+    policy: KraggPolicy,
+    count: int,
+) -> tuple[FlakyTest, ...]:
+    """Run the test suite ``count`` times and rank tests by failure ratio."""
+    failed_per_run = [_run_once(root, env, policy) for _ in range(count)]
+    return aggregate_reruns(failed_per_run)
+
+
+def aggregate_reruns(failed_per_run: list[list[str]]) -> tuple[FlakyTest, ...]:
+    """Flag tests that failed in some-but-not-all runs (intermittent)."""
+    runs = len(failed_per_run)
+    counts: dict[str, int] = {}
+    for failed in failed_per_run:
+        for test_id in set(failed):
+            counts[test_id] = counts.get(test_id, 0) + 1
+    flaky = [
+        FlakyTest(test_id, failures, runs)
+        for test_id, failures in counts.items()
+        if 0 < failures < runs
+    ]
+    return tuple(sorted(flaky, key=lambda test: test.failures, reverse=True))
+
+
+def render_reruns(tests: tuple[FlakyTest, ...], count: int) -> list[str]:
+    """Render active-rerun flaky findings as token-efficient lines."""
+    if not tests:
+        return [f"no flaky tests across {count} runs"]
+    lines = [f"flaky: {len(tests)} tests failed intermittently across {count} runs"]
+    for test in tests:
+        lines.append(
+            f"  {test.test_id}: {test.failures}/{test.runs} failed ({test.ratio:.0%})"
+        )
+    return lines
+
+
+def _run_once(root: Path, env: ProjectEnvironment, policy: KraggPolicy) -> list[str]:
+    command = env.module_command("pytest", *policy.test_paths, "-q")
+    return parse_failed_test_ids(run_command("pytest", command, root).stdout)

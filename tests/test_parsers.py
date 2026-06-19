@@ -2,6 +2,7 @@ import json
 
 from kragg.parsers import (
     parse_bandit_json,
+    parse_failed_test_ids,
     parse_mypy_output,
     parse_pip_audit_json,
     parse_pytest_output,
@@ -134,3 +135,18 @@ def test_parse_pytest_output() -> None:
     assert len(violations) == 1
     assert violations[0].file == "tests/test_app.py"
     assert "uv run pytest tests/test_app.py::test_main" in str(violations[0].fix_hint)
+
+
+def test_parse_failed_test_ids() -> None:
+    stdout = "\n".join(
+        [
+            "FAILED tests/test_app.py::test_main - AssertionError",
+            "ERROR tests/test_app.py::test_setup - fixture error",
+            "1 failed, 1 error, 4 passed in 0.12s",
+        ]
+    )
+
+    assert parse_failed_test_ids(stdout) == [
+        "tests/test_app.py::test_main",
+        "tests/test_app.py::test_setup",
+    ]

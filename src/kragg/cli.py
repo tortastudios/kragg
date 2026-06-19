@@ -105,9 +105,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     flaky_parser = subparsers.add_parser(
         "flaky",
-        help="find gates that flipped pass/fail on an unchanged commit",
+        help="find flaky tests (journal mining, or --rerun N to re-run)",
     )
     flaky_parser.add_argument("--last", type=int, default=50)
+    flaky_parser.add_argument(
+        "--rerun",
+        type=int,
+        default=0,
+        metavar="N",
+        help="re-run the suite N times and rank tests by failure ratio",
+    )
     flaky_parser.set_defaults(handler=commands.cmd_flaky)
 
     hook_parser = subparsers.add_parser(

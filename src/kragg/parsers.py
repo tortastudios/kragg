@@ -153,6 +153,16 @@ def parse_pip_audit_json(stdout: str) -> tuple[Violation, ...]:
     return tuple(violations)
 
 
+def parse_failed_test_ids(stdout: str) -> list[str]:
+    """Return the test ids from pytest's FAILED/ERROR short-summary lines."""
+    ids: list[str] = []
+    for line in stdout.splitlines():
+        match = _PYTEST_FAILED.match(line.strip())
+        if match:
+            ids.append(match.group("id"))
+    return ids
+
+
 def parse_pytest_output(stdout: str) -> tuple[Violation, ...]:
     """Extract failed/errored test ids from pytest's short summary."""
     violations: list[Violation] = []
