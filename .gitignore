@@ -21,5 +21,7 @@ htmlcov/
 # OS
 .DS_Store
 
-# crag run journal
-.kragg/
+# kragg local artifacts (journal, coverage, criticality, mutation sessions)
+.kragg/*
+# ...but the reviewed equivalent-mutant baseline is meant to be committed
+!.kragg/mutants.baseline

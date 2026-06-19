@@ -89,6 +89,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     mutation_parser.add_argument("--since", default=None)
     mutation_parser.add_argument("--all", dest="mutate_all", action="store_true")
+    mutation_parser.add_argument(
+        "--update-baseline",
+        dest="update_baseline",
+        action="store_true",
+        help="record current survivors as accepted (equivalent) mutants",
+    )
     mutation_parser.set_defaults(handler=commands.cmd_mutation)
 
     hook_parser = subparsers.add_parser(
