@@ -97,6 +97,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     mutation_parser.set_defaults(handler=commands.cmd_mutation)
 
+    spec_parser = subparsers.add_parser(
+        "spec",
+        help="render the test suite as a readable spec tree",
+    )
+    spec_parser.set_defaults(handler=commands.cmd_spec)
+
     hook_parser = subparsers.add_parser(
         "hook",
         help="harness hook adapter (reads hook JSON from stdin)",

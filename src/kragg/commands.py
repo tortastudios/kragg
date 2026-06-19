@@ -22,6 +22,7 @@ from kragg import (
     mapping,
     mutation,
     report,
+    spec,
 )
 from kragg.catalog import build_check_gates, build_security_gates
 from kragg.changes import changed_python_files
@@ -309,6 +310,15 @@ def _report_mutation(
     for line in mutation.render_survivors(survivors):
         print(line)
     return EXIT_GATE_FAILURES if survivors else EXIT_OK
+
+
+def cmd_spec(args: argparse.Namespace) -> int:
+    del args
+    root = Path.cwd()
+    policy = load_policy(root)
+    for line in spec.render_spec(spec.build_spec(root, policy.test_paths)):
+        print(line)
+    return 0
 
 
 def cmd_hook(args: argparse.Namespace) -> int:
