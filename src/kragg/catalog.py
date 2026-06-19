@@ -16,6 +16,7 @@ from kragg.environment import (
 )
 from kragg.gates import (
     architecture,
+    critical_coverage,
     critical_tests,
     halstead,
     secrets,
@@ -81,11 +82,7 @@ def build_check_gates(
             "critical-tests",
             FAST,
             lambda: _critical_tests_gate(root, policy),
-            skip_reason=(
-                None
-                if (root / ".kragg" / "criticality.json").exists()
-                else "no criticality data (run `kragg criticality --write`)"
-            ),
+            skip_reason=_no_criticality_reason(root),
         ),
         GateSpec("test-quality", FAST, lambda: _test_quality_gate(root, policy)),
         GateSpec("bandit", FAST, lambda: _bandit_gate(root, targets)),
@@ -104,6 +101,12 @@ def build_check_gates(
             skip_reason=slow_skip,
         ),
         GateSpec(
+            "critical-coverage",
+            SLOW,
+            lambda: _critical_coverage_gate(root, policy),
+            skip_reason=slow_skip or _no_criticality_reason(root),
+        ),
+        GateSpec(
             "pip-audit",
             SLOW,
             lambda: _project_tool_gate(
@@ -117,6 +120,12 @@ def build_check_gates(
             skip_reason=slow_skip,
         ),
     ]
+
+
+def _no_criticality_reason(root: Path) -> str | None:
+    if (root / ".kragg" / "criticality.json").exists():
+        return None
+    return "no criticality data (run `kragg criticality --write`)"
 
 
 def build_security_gates(
@@ -365,6 +374,16 @@ def _test_quality_gate(root: Path, policy: KraggPolicy) -> GateResult:
     violations = test_quality.check_tests(root, policy.test_paths)
     return GateResult(
         name="test-quality",
+        passed=not violations,
+        violations=violations,
+        violation_count=len(violations),
+    )
+
+
+def _critical_coverage_gate(root: Path, policy: KraggPolicy) -> GateResult:
+    violations = critical_coverage.check_critical_coverage(root, policy.source_paths)
+    return GateResult(
+        name="critical-coverage",
         passed=not violations,
         violations=violations,
         violation_count=len(violations),

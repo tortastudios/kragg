@@ -61,7 +61,8 @@ type-complexity, **boundaries** (layered import contract from
 **critical-tests** (critical functions cannot change without test changes),
 **test-quality** (no assertion-free tests; critical functions must be
 referenced by tests), bandit, detect-secrets.
-Slow (skipped while fast gates fail): pytest+coverage, pip-audit.
+Slow (skipped while fast gates fail): pytest+coverage, **critical-coverage**
+(public critical functions must have no uncovered lines), pip-audit.
 
 ## Agent-native design
 
