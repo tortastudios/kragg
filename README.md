@@ -42,6 +42,7 @@ kragg check --file src/foo.py --file src/bar.py
 kragg check --format json     # stable machine-readable schema
 kragg fix                     # auto-fix formatting and safe lint
 kragg map                     # public symbol inventory (what already exists)
+kragg spec                    # test suite rendered as a readable spec tree
 kragg coverage                # uncovered lines in critical functions (ranked)
 kragg mutation                # mutation-test changed critical files (cosmic-ray)
 kragg mutation --all          # mutation-test every critical file
