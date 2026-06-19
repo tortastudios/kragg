@@ -35,7 +35,8 @@ Do not optimize for elegance by expanding scope. Do not optimize for performance
 
 ## Project Map
 
-- `src/kragg/cli.py`: CLI command parsing and command orchestration.
+- `src/kragg/cli.py`: CLI argument parsing and dispatch.
+- `src/kragg/commands.py`: command handlers behind each subcommand.
 - `src/kragg/scaffold.py`: generated project files and initialization logic.
 - `src/kragg/gates/`: built-in guardrail checks for complexity, secrets, Halstead metrics, and criticality.
 - `src/kragg/policy.py`: `kragg.toml` / `[tool.kragg]` policy loading and defaults.
@@ -48,6 +49,7 @@ Do not optimize for elegance by expanding scope. Do not optimize for performance
 - `src/kragg/report.py`: consolidated reports, JSON schema, text rendering, exit codes.
 - `src/kragg/critical.py`: resolves public critical functions to source file + coverage key; shared by coverage and mutation surfaces.
 - `src/kragg/coverage.py`: reads coverage.py JSON, surfaces criticality-ranked coverage gaps (`kragg coverage`).
+- `src/kragg/mutation.py`: targeted mutation testing via cosmic-ray over changed critical files (`kragg mutation`).
 - `src/kragg/changes.py`: git-based changed-file detection for `--changed`.
 - `src/kragg/journal.py`: `.kragg/history.jsonl` run journal backing `kragg status`.
 - `src/kragg/hooks.py`: harness hook adapters (`kragg hook claude`).

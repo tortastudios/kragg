@@ -43,6 +43,8 @@ kragg check --format json     # stable machine-readable schema
 kragg fix                     # auto-fix formatting and safe lint
 kragg map                     # public symbol inventory (what already exists)
 kragg coverage                # uncovered lines in critical functions (ranked)
+kragg mutation                # mutation-test changed critical files (cosmic-ray)
+kragg mutation --all          # mutation-test every critical file
 kragg brief                   # reviewable digest of the change set
 kragg security
 kragg audit
