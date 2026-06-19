@@ -59,6 +59,16 @@ class ProjectEnvironment:
     def module_command(self, module: str, *args: str) -> list[str]:
         return self.command("-m", module, *args)
 
+    def script_command(self, name: str, *args: str) -> list[str]:
+        """Invoke a console-script entry point in the project environment.
+
+        Some tools (e.g. cosmic-ray) are not runnable via ``python -m``; they
+        ship only a console script in the environment's bin directory.
+        """
+        if self.python is not None:
+            return [str(self.python.parent / name), *args]
+        return ["uv", "run", "--project", str(self.root), name, *args]
+
     def describe(self) -> str:
         if self.python is not None:
             return f"{self.python} (via {self.source})"

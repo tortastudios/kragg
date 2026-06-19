@@ -58,7 +58,9 @@ Issues = "https://github.com/tortastudios/kragg/issues"
 kragg = "kragg.cli:main"
 
 [dependency-groups]
-dev = []
+dev = [
+    "cosmic-ray>=8.4.6",
+]
 
 [build-system]
 requires = ["hatchling"]
