@@ -38,7 +38,7 @@ Do not optimize for elegance by expanding scope. Do not optimize for performance
 - `src/kragg/cli.py`: CLI argument parsing and dispatch.
 - `src/kragg/commands.py`: command handlers behind each subcommand.
 - `src/kragg/scaffold.py`: generated project files and initialization logic.
-- `src/kragg/gates/`: built-in guardrail checks for complexity, secrets, Halstead metrics, and criticality.
+- `src/kragg/gates/`: built-in guardrail checks for complexity, type/architecture constraints, secrets, criticality, and test quality/coverage.
 - `src/kragg/policy.py`: `kragg.toml` / `[tool.kragg]` policy loading and defaults.
 - `src/kragg/models.py`: shared result/context data types.
 - `src/kragg/runner.py`: external command execution wrapper.
@@ -73,6 +73,8 @@ Update this section when the repo structure changes.
 - Format check: `uv run ruff format --check src tests`
 - Format: `uv run ruff format src tests`
 - Focused guardrail check: `uv run kragg check --file <path>`
+- Coverage gaps / spec / flaky: `uv run kragg coverage`, `uv run kragg spec`, `uv run kragg flaky`
+- Mutation test (on-demand, slow; needs cosmic-ray): `uv run kragg mutation --all`
 
 Use the narrowest relevant command first. Run broader validation before claiming completion when practical.
 
