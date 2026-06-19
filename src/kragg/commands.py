@@ -327,10 +327,23 @@ def cmd_spec(args: argparse.Namespace) -> int:
 
 def cmd_flaky(args: argparse.Namespace) -> int:
     root = Path.cwd()
+    if args.rerun:
+        return _flaky_rerun(root, args.rerun)
     runs = journal.read_runs(root, args.last)
     for line in flaky.render_passive(flaky.passive_flaky(runs)):
         print(line)
     return 0
+
+
+def _flaky_rerun(root: Path, count: int) -> int:
+    policy = load_policy(root)
+    env = _project_environment(root)
+    if env is None:
+        return EXIT_ENVIRONMENT
+    tests = flaky.run_reruns(root, env, policy, count)
+    for line in flaky.render_reruns(tests, count):
+        print(line)
+    return EXIT_GATE_FAILURES if tests else EXIT_OK
 
 
 def cmd_hook(args: argparse.Namespace) -> int:

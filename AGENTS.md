@@ -52,7 +52,7 @@ Do not optimize for elegance by expanding scope. Do not optimize for performance
 - `src/kragg/mutation.py`: targeted mutation testing via cosmic-ray over changed critical files (`kragg mutation`).
 - `src/kragg/spec.py`: extracts the test suite's name/docstring tree and flags critical functions lacking property-based tests (`kragg spec`).
 - `src/kragg/changes.py`: git-based changed-file detection plus HEAD sha and dirty-tree metadata.
-- `src/kragg/flaky.py`: flaky detection — passive journal mining of same-commit outcome flips (`kragg flaky`).
+- `src/kragg/flaky.py`: flaky detection — passive journal mining and active suite reruns (`kragg flaky [--rerun N]`).
 - `src/kragg/journal.py`: `.kragg/history.jsonl` run journal backing `kragg status`.
 - `src/kragg/hooks.py`: harness hook adapters (`kragg hook claude`).
 - `src/kragg/mapping.py`: public-symbol inventory backing `kragg map`.
