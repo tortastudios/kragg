@@ -285,6 +285,8 @@ def _annotation_of(node: ast.AST) -> ast.expr | None:
         return node.returns
     if isinstance(node, ast.AnnAssign):
         return node.annotation
+    if isinstance(node, ast.TypeAlias):
+        return node.value  # PEP 695 `type X = ...` is lazily evaluated too
     return None
 
 
