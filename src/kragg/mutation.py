@@ -27,6 +27,7 @@ from kragg.policy import KraggPolicy
 from kragg.runner import run_command
 
 DEFAULT_TIMEOUT = 30.0
+BASELINE_RELATIVE = ".kragg/mutants.baseline"
 
 
 class MutationError(RuntimeError):
@@ -277,3 +278,35 @@ def _first_change(diff: str, prefix: str, skip: str) -> str:
 
 def _short_operator(operator: str) -> str:
     return operator.rsplit("/", 1)[-1]
+
+
+def baseline_path(root: Path) -> Path:
+    return root / BASELINE_RELATIVE
+
+
+def load_baseline(root: Path) -> set[str]:
+    """Read accepted (e.g. equivalent) mutant signatures; empty when absent."""
+    try:
+        data = json.loads(baseline_path(root).read_text())
+    except (OSError, json.JSONDecodeError):
+        return set()
+    if not isinstance(data, list):
+        return set()
+    return {str(item) for item in data}
+
+
+def write_baseline(root: Path, survivors: tuple[Survivor, ...]) -> int:
+    """Record the survivors' signatures as the accepted baseline."""
+    signatures = sorted({survivor.signature() for survivor in survivors})
+    path = baseline_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(signatures, indent=1) + "\n")
+    return len(signatures)
+
+
+def filter_baselined(
+    survivors: tuple[Survivor, ...],
+    baseline: set[str],
+) -> tuple[Survivor, ...]:
+    """Drop survivors whose signature is in the accepted baseline."""
+    return tuple(s for s in survivors if s.signature() not in baseline)

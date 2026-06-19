@@ -45,6 +45,7 @@ kragg map                     # public symbol inventory (what already exists)
 kragg coverage                # uncovered lines in critical functions (ranked)
 kragg mutation                # mutation-test changed critical files (cosmic-ray)
 kragg mutation --all          # mutation-test every critical file
+kragg mutation --update-baseline  # accept current survivors (equivalent mutants)
 kragg brief                   # reviewable digest of the change set
 kragg security
 kragg audit

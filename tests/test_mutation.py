@@ -11,12 +11,15 @@ from kragg.mutation import (
     build_config,
     cosmic_ray_available,
     diff_summary,
+    filter_baselined,
     format_test_command,
+    load_baseline,
     parse_survivors,
     render_survivors,
     run_mutation,
     select_targets,
     survivor_violation,
+    write_baseline,
 )
 from kragg.policy import KraggPolicy
 
@@ -224,6 +227,27 @@ def test_run_mutation_reports_exec_failure(tmp_path: Path, monkeypatch: Any) -> 
 
     assert report.error is not None
     assert "exec failed" in report.error
+
+
+def test_load_baseline_missing_is_empty(tmp_path: Path) -> None:
+    assert load_baseline(tmp_path) == set()
+
+
+def test_baseline_round_trip(tmp_path: Path) -> None:
+    survivors = parse_survivors(_DUMP)
+
+    count = write_baseline(tmp_path, survivors)
+
+    assert count == 1
+    assert survivors[0].signature() in load_baseline(tmp_path)
+
+
+def test_filter_baselined_drops_known_signatures(tmp_path: Path) -> None:
+    survivors = parse_survivors(_DUMP)
+    baseline = {survivors[0].signature()}
+
+    assert filter_baselined(survivors, baseline) == ()
+    assert filter_baselined(survivors, set()) == survivors
 
 
 def test_cosmic_ray_available_checks_bin(tmp_path: Path) -> None:

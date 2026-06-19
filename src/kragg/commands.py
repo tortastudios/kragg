@@ -288,16 +288,27 @@ def cmd_mutation(args: argparse.Namespace) -> int:
         print("cosmic-ray is not installed in the project environment")
         print(environment.remediation("cosmic_ray"))
         return EXIT_ENVIRONMENT
-    return _report_mutation(mutation.run_mutation(root, env, policy, targets))
+    result = mutation.run_mutation(root, env, policy, targets)
+    return _report_mutation(root, result, args.update_baseline)
 
 
-def _report_mutation(result: mutation.MutationReport) -> int:
+def _report_mutation(
+    root: Path,
+    result: mutation.MutationReport,
+    update_baseline: bool,
+) -> int:
     if result.error is not None:
         print(result.error, file=sys.stderr)
         return EXIT_ENVIRONMENT
-    for line in mutation.render_survivors(result.survivors):
+    if update_baseline:
+        count = mutation.write_baseline(root, result.survivors)
+        print(f"baselined {count} surviving mutants in {mutation.BASELINE_RELATIVE}")
+        return EXIT_OK
+    baseline = mutation.load_baseline(root)
+    survivors = mutation.filter_baselined(result.survivors, baseline)
+    for line in mutation.render_survivors(survivors):
         print(line)
-    return EXIT_GATE_FAILURES if result.survivors else EXIT_OK
+    return EXIT_GATE_FAILURES if survivors else EXIT_OK
 
 
 def cmd_hook(args: argparse.Namespace) -> int:
