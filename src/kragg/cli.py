@@ -8,7 +8,7 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import cast
 
-from kragg import brief, environment, journal, mapping, report, templates
+from kragg import brief, coverage, environment, journal, mapping, report, templates
 from kragg.catalog import build_check_gates, build_security_gates
 from kragg.changes import changed_python_files
 from kragg.check import GateSpec, run_gates
@@ -90,6 +90,12 @@ def build_parser() -> argparse.ArgumentParser:
     map_parser = subparsers.add_parser("map", help="public symbol inventory")
     map_parser.add_argument("--write", action="store_true")
     map_parser.set_defaults(handler=cmd_map)
+
+    coverage_parser = subparsers.add_parser(
+        "coverage",
+        help="critical-function coverage gaps from the last check",
+    )
+    coverage_parser.set_defaults(handler=cmd_coverage)
 
     hook_parser = subparsers.add_parser(
         "hook",
@@ -339,6 +345,18 @@ def cmd_map(args: argparse.Namespace) -> int:
         output = root / ".kragg" / "map.md"
         mapping.write_map(lines, output)
         print(f"Wrote {output}")
+    return 0
+
+
+def cmd_coverage(args: argparse.Namespace) -> int:
+    del args
+    root = Path.cwd()
+    policy = load_policy(root)
+    if coverage.read_report(root) is None:
+        print("no coverage data (run `kragg check` first)")
+        return 0
+    for line in coverage.render_gaps(coverage.critical_gaps(root, policy.source_paths)):
+        print(line)
     return 0
 
 

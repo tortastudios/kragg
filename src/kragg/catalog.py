@@ -7,6 +7,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from kragg.check import FAST, SLOW, GateSpec, OutputParser
+from kragg.coverage import COVERAGE_JSON_RELATIVE
 from kragg.environment import (
     ProjectEnvironment,
     missing_interpreter_message,
@@ -44,9 +45,11 @@ def build_check_gates(
 ) -> list[GateSpec]:
     """Assemble the full `kragg check` pipeline."""
     slow_skip = "incremental mode" if incremental else None
+    (root / ".kragg").mkdir(parents=True, exist_ok=True)
     pytest_args = (
         "--cov=src",
         "--cov-report=term-missing",
+        f"--cov-report=json:{COVERAGE_JSON_RELATIVE}",
         f"--cov-fail-under={policy.coverage_fail_under}",
         "-q",
     )
