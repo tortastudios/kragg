@@ -95,6 +95,36 @@ def test_resolve_falls_back_to_uv(tmp_path: Path, monkeypatch: Any) -> None:
     ]
 
 
+def test_script_command_uses_env_bin(tmp_path: Path, monkeypatch: Any) -> None:
+    _clear_env(monkeypatch)
+    python = _make_python(tmp_path / ".venv")
+
+    env = resolve_project_environment(tmp_path)
+
+    assert env.script_command("cosmic-ray", "init", "cfg", "ses") == [
+        str(python.parent / "cosmic-ray"),
+        "init",
+        "cfg",
+        "ses",
+    ]
+
+
+def test_script_command_uv_fallback(tmp_path: Path, monkeypatch: Any) -> None:
+    _clear_env(monkeypatch)
+    monkeypatch.setattr("kragg.environment.shutil.which", lambda _: "/usr/bin/uv")
+
+    env = resolve_project_environment(tmp_path)
+
+    assert env.script_command("cosmic-ray", "exec") == [
+        "uv",
+        "run",
+        "--project",
+        str(tmp_path),
+        "cosmic-ray",
+        "exec",
+    ]
+
+
 def _completed(
     stdout: str = "",
     stderr: str = "",
