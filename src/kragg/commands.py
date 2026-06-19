@@ -318,6 +318,9 @@ def cmd_spec(args: argparse.Namespace) -> int:
     policy = load_policy(root)
     for line in spec.render_spec(spec.build_spec(root, policy.test_paths)):
         print(line)
+    rows = spec.property_coverage(root, policy.source_paths, policy.test_paths)
+    for line in spec.render_property_coverage(rows):
+        print(line)
     return 0
 
 
