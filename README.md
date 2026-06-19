@@ -52,6 +52,7 @@ kragg security
 kragg audit
 kragg criticality --write     # call-graph risk -> CRITICALITY.md + .kragg/
 kragg status                  # what failed last run, without re-running
+kragg flaky                   # gates that flipped pass/fail on an unchanged commit
 kragg hook claude             # harness hook adapter (reads hook JSON on stdin)
 kragg doctor                  # environment diagnostics with exact fixes
 kragg policy show

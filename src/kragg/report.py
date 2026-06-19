@@ -6,11 +6,9 @@ import json
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from importlib import metadata
-from pathlib import Path
 from typing import TypedDict
 
 from kragg.models import GateResult, Violation
-from kragg.runner import run_command
 
 SCHEMA_VERSION = 1
 
@@ -336,11 +334,3 @@ def kragg_version() -> str:
 
 def utc_now() -> str:
     return datetime.now(UTC).isoformat(timespec="seconds")
-
-
-def git_sha(root: Path) -> str | None:
-    try:
-        result = run_command("git", ["git", "rev-parse", "--short", "HEAD"], root)
-    except OSError:
-        return None
-    return result.stdout.strip() if result.passed else None

@@ -9,6 +9,7 @@ import json
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
+from kragg.changes import git_dirty
 from kragg.report import ReportPayload
 
 JOURNAL_DIR = ".kragg"
@@ -31,6 +32,7 @@ class JournalEntry(TypedDict):
     command: str
     mode: str
     git_sha: str | None
+    git_dirty: bool
     passed: bool
     exit_code: int
     duration_ms: int
@@ -45,6 +47,7 @@ def append_run(root: Path, payload: ReportPayload) -> None:
         command=payload["command"],
         mode=payload["mode"],
         git_sha=payload["git_sha"],
+        git_dirty=git_dirty(root),
         passed=payload["passed"],
         exit_code=payload["exit_code"],
         duration_ms=payload["duration_ms"],

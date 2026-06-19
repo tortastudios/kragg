@@ -103,6 +103,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     spec_parser.set_defaults(handler=commands.cmd_spec)
 
+    flaky_parser = subparsers.add_parser(
+        "flaky",
+        help="find gates that flipped pass/fail on an unchanged commit",
+    )
+    flaky_parser.add_argument("--last", type=int, default=50)
+    flaky_parser.set_defaults(handler=commands.cmd_flaky)
+
     hook_parser = subparsers.add_parser(
         "hook",
         help="harness hook adapter (reads hook JSON from stdin)",
