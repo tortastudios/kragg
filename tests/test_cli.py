@@ -188,7 +188,7 @@ def test_check_changed_outside_git_repo_exits_3(
     tmp_path: Path, monkeypatch: Any
 ) -> None:
     _setup_check(tmp_path, monkeypatch)
-    monkeypatch.setattr("kragg.cli.changed_python_files", lambda *a: None)
+    monkeypatch.setattr("kragg.commands.changed_python_files", lambda *a: None)
 
     assert main(["check", "--changed"]) == 3
 
@@ -197,7 +197,7 @@ def test_check_changed_with_no_files_is_a_cheap_pass(
     tmp_path: Path, monkeypatch: Any, capsys: Any
 ) -> None:
     _setup_check(tmp_path, monkeypatch)
-    monkeypatch.setattr("kragg.cli.changed_python_files", lambda *a: [])
+    monkeypatch.setattr("kragg.commands.changed_python_files", lambda *a: [])
 
     assert main(["check", "--changed"]) == 0
     assert "no changed Python files" in capsys.readouterr().out
@@ -255,7 +255,7 @@ def test_fix_runs_format_and_safe_fixes(tmp_path: Path, monkeypatch: Any) -> Non
     _make_project(tmp_path)
     monkeypatch.chdir(tmp_path)
     runner = _FakeRunner()
-    monkeypatch.setattr("kragg.cli.run_command", runner)
+    monkeypatch.setattr("kragg.commands.run_command", runner)
 
     assert main(["fix"]) == 0
 

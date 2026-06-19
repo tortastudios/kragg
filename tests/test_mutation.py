@@ -2,11 +2,68 @@ import json
 import subprocess
 import tomllib
 from pathlib import Path
+from typing import Any
 
-from kragg.mutation import build_config, format_test_command, select_targets
+from kragg.environment import ProjectEnvironment
+from kragg.models import CompletedCommand
+from kragg.mutation import (
+    Survivor,
+    build_config,
+    cosmic_ray_available,
+    diff_summary,
+    format_test_command,
+    parse_survivors,
+    render_survivors,
+    run_mutation,
+    select_targets,
+    survivor_violation,
+)
 from kragg.policy import KraggPolicy
 
 POLICY = KraggPolicy()
+
+_DIFF = (
+    "--- mutation diff ---\n--- am.py\n+++ bm.py\n@@ -1,3 +1,3 @@\n"
+    " def vital(n):\n-    if n > 0:\n+    if n >= 0:\n"
+)
+
+
+def _dump_line(outcome: str) -> str:
+    item = {
+        "job_id": "j",
+        "mutations": [
+            {
+                "module_path": "src/app/core.py",
+                "operator_name": "core/ReplaceComparisonOperator_Gt_GtE",
+                "occurrence": 1,
+                "start_pos": [2, 7],
+                "end_pos": [2, 8],
+                "operator_args": {},
+                "definition_name": "vital",
+            }
+        ],
+    }
+    result = {
+        "worker_outcome": "normal",
+        "output": "1 passed",
+        "test_outcome": outcome,
+        "diff": _DIFF,
+    }
+    return json.dumps([item, result])
+
+
+_DUMP = "\n".join(
+    [
+        _dump_line("survived"),
+        _dump_line("killed"),
+        json.dumps([{"job_id": "k", "mutations": []}, None]),
+    ]
+)
+
+
+def _fake_env(tmp_path: Path) -> ProjectEnvironment:
+    python = tmp_path / ".venv" / "bin" / "python"
+    return ProjectEnvironment(root=tmp_path, python=python, source=".venv")
 
 
 def _git(root: Path, *args: str) -> None:
@@ -93,3 +150,89 @@ def test_format_test_command_joins_safely() -> None:
     command = format_test_command(("/venv/bin/python",), ("tests",))
 
     assert command == "/venv/bin/python -m pytest -x -q tests"
+
+
+def test_parse_survivors_keeps_only_survived() -> None:
+    survivors = parse_survivors(_DUMP)
+
+    assert len(survivors) == 1
+    survivor = survivors[0]
+    assert survivor.file == "src/app/core.py"
+    assert survivor.line == 2
+    assert survivor.function == "vital"
+    assert survivor.occurrence == 1
+    assert "ReplaceComparisonOperator_Gt_GtE" in survivor.operator
+
+
+def test_parse_survivors_ignores_malformed_lines() -> None:
+    assert parse_survivors("not json\n[]\n{}\n\n") == ()
+
+
+def test_survivor_signature_is_session_independent() -> None:
+    survivor = Survivor("f.py", 2, "vital", "core/Op", 3, "")
+
+    assert survivor.signature() == "f.py::core/Op::3"
+
+
+def test_diff_summary_extracts_old_and_new() -> None:
+    assert diff_summary(_DIFF) == "if n > 0: -> if n >= 0:"
+
+
+def test_survivor_violation_has_location_and_hint() -> None:
+    violation = survivor_violation(parse_survivors(_DUMP)[0])
+
+    assert violation.code == "mutant"
+    assert violation.file == "src/app/core.py"
+    assert violation.line == 2
+    assert violation.fix_hint is not None
+    assert "vital" in violation.fix_hint
+
+
+def test_render_survivors_empty_message() -> None:
+    assert render_survivors(()) == ["no surviving mutants"]
+
+
+def test_render_survivors_lists_each(tmp_path: Path) -> None:
+    lines = render_survivors(parse_survivors(_DUMP))
+
+    assert "1 surviving mutants in 1 files" in lines[0]
+    assert any("src/app/core.py:2" in line for line in lines)
+
+
+def test_run_mutation_collects_survivors(tmp_path: Path, monkeypatch: Any) -> None:
+    def fake(name: str, command: list[str], cwd: Path) -> CompletedCommand:
+        out = _DUMP if "dump" in command else ""
+        return CompletedCommand(name, tuple(command), cwd, 0, out, "")
+
+    monkeypatch.setattr("kragg.mutation.run_command", fake)
+
+    report = run_mutation(tmp_path, _fake_env(tmp_path), POLICY, ("src/app/core.py",))
+
+    assert report.error is None
+    assert report.files_tested == 1
+    assert len(report.survivors) == 1
+
+
+def test_run_mutation_reports_exec_failure(tmp_path: Path, monkeypatch: Any) -> None:
+    def fake(name: str, command: list[str], cwd: Path) -> CompletedCommand:
+        code = 1 if "exec" in command else 0
+        return CompletedCommand(name, tuple(command), cwd, code, "", "boom")
+
+    monkeypatch.setattr("kragg.mutation.run_command", fake)
+
+    report = run_mutation(tmp_path, _fake_env(tmp_path), POLICY, ("src/app/core.py",))
+
+    assert report.error is not None
+    assert "exec failed" in report.error
+
+
+def test_cosmic_ray_available_checks_bin(tmp_path: Path) -> None:
+    python = tmp_path / ".venv" / "bin" / "python"
+    python.parent.mkdir(parents=True)
+    python.write_text("")
+    env = ProjectEnvironment(root=tmp_path, python=python, source=".venv")
+
+    assert cosmic_ray_available(env) is False
+
+    (python.parent / "cosmic-ray").write_text("")
+    assert cosmic_ray_available(env) is True
