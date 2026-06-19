@@ -28,6 +28,18 @@ def changed_python_files(
     return _filter_python_files(root, names, allowed)
 
 
+def git_sha(root: Path) -> str | None:
+    """Short HEAD sha, or None outside a git repository."""
+    output = _git(root, "rev-parse", "--short", "HEAD")
+    return output.strip() if output is not None else None
+
+
+def git_dirty(root: Path) -> bool:
+    """Whether the working tree has uncommitted changes (False off a repo)."""
+    output = _git(root, "status", "--porcelain")
+    return bool(output.strip()) if output is not None else False
+
+
 def _resolve_base(root: Path, since: str | None) -> str | None:
     if since is None:
         return "HEAD"

@@ -18,6 +18,7 @@ from kragg import (
     brief,
     coverage,
     environment,
+    flaky,
     journal,
     mapping,
     mutation,
@@ -25,7 +26,7 @@ from kragg import (
     spec,
 )
 from kragg.catalog import build_check_gates, build_security_gates
-from kragg.changes import changed_python_files
+from kragg.changes import changed_python_files, git_sha
 from kragg.check import GateSpec, run_gates
 from kragg.environment import ProjectEnvironment, resolve_project_environment
 from kragg.gates import criticality
@@ -173,7 +174,7 @@ def _run_pipeline(
         results=results,
         max_violations=max_violations,
         started_at=started_at,
-        git_sha=report.git_sha(root),
+        git_sha=git_sha(root),
     )
     if args.format == "json":
         print(report.render_json(built))
@@ -320,6 +321,14 @@ def cmd_spec(args: argparse.Namespace) -> int:
         print(line)
     rows = spec.property_coverage(root, policy.source_paths, policy.test_paths)
     for line in spec.render_property_coverage(rows):
+        print(line)
+    return 0
+
+
+def cmd_flaky(args: argparse.Namespace) -> int:
+    root = Path.cwd()
+    runs = journal.read_runs(root, args.last)
+    for line in flaky.render_passive(flaky.passive_flaky(runs)):
         print(line)
     return 0
 

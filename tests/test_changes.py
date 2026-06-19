@@ -1,7 +1,7 @@
 import subprocess
 from pathlib import Path
 
-from kragg.changes import changed_python_files
+from kragg.changes import changed_python_files, git_dirty, git_sha
 
 
 def _git(root: Path, *args: str) -> None:
@@ -80,3 +80,34 @@ def test_since_unknown_ref_returns_none(tmp_path: Path) -> None:
     _git(tmp_path, "commit", "-m", "initial")
 
     assert changed_python_files(tmp_path, "no-such-ref", ("src",)) is None
+
+
+def test_git_sha_none_outside_repo(tmp_path: Path) -> None:
+    assert git_sha(tmp_path) is None
+
+
+def test_git_sha_returns_short_hash(tmp_path: Path) -> None:
+    _make_repo(tmp_path)
+    (tmp_path / "a.txt").write_text("x\n")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-m", "initial")
+
+    sha = git_sha(tmp_path)
+
+    assert sha is not None
+    assert len(sha) >= 4
+
+
+def test_git_dirty_tracks_uncommitted_changes(tmp_path: Path) -> None:
+    _make_repo(tmp_path)
+    (tmp_path / "a.txt").write_text("x\n")
+    _git(tmp_path, "add", ".")
+    _git(tmp_path, "commit", "-m", "initial")
+    assert git_dirty(tmp_path) is False
+
+    (tmp_path / "a.txt").write_text("changed\n")
+    assert git_dirty(tmp_path) is True
+
+
+def test_git_dirty_false_outside_repo(tmp_path: Path) -> None:
+    assert git_dirty(tmp_path) is False

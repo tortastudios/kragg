@@ -22,7 +22,7 @@ from typing import Any, cast
 
 from kragg import journal, mapping, report
 from kragg.catalog import build_check_gates
-from kragg.changes import changed_python_files
+from kragg.changes import changed_python_files, git_sha
 from kragg.check import run_gates
 from kragg.environment import resolve_project_environment
 from kragg.policy import load_policy
@@ -135,7 +135,7 @@ def _run_check(
         results=results,
         max_violations=policy.max_violations_per_gate,
         started_at=report.utc_now(),
-        git_sha=report.git_sha(root),
+        git_sha=git_sha(root),
     )
     journal.append_run(root, report.to_payload(built))
     return built
