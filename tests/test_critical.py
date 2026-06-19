@@ -88,6 +88,28 @@ def test_missing_fan_in_defaults_to_zero(tmp_path: Path) -> None:
     assert critical_functions(tmp_path, ("src",))[0].fan_in == 0
 
 
+def test_non_critical_entry_before_critical_is_still_resolved(tmp_path: Path) -> None:
+    _make_tree(
+        tmp_path,
+        [
+            {"name": "app.core.plain", "is_critical": False, "fan_in": 1},
+            {"name": "app.core.vital", "is_critical": True, "fan_in": 6},
+        ],
+    )
+
+    names = [fn.qualname for fn in critical_functions(tmp_path, ("src",))]
+
+    assert "app.core.vital" in names
+
+
+def test_missing_source_path_before_real_one_is_handled(tmp_path: Path) -> None:
+    _make_tree(tmp_path, [{"name": "app.core.vital", "is_critical": True, "fan_in": 6}])
+
+    functions = critical_functions(tmp_path, ("missing", "src"))
+
+    assert [fn.qualname for fn in functions] == ["app.core.vital"]
+
+
 def test_critical_files_dedupes_by_file(tmp_path: Path) -> None:
     _make_tree(
         tmp_path,

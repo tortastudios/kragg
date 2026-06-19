@@ -148,3 +148,74 @@ def test_next_actions_surface_environment_fixes() -> None:
     text = render_text(_build([result]))
 
     assert "mypy: Fix: uv add --dev mypy" in text
+
+
+def test_render_text_shows_location_code_count_and_hint() -> None:
+    result = GateResult(
+        name="ruff",
+        passed=False,
+        violations=(
+            Violation(
+                message="bad",
+                file="src/a.py",
+                line=3,
+                code="X1",
+                fix_hint="do this",
+            ),
+        ),
+        violation_count=1,
+    )
+
+    text = render_text(_build([result]))
+
+    assert "[FAIL] ruff" in text
+    assert "— 1 violations" in text
+    assert "src/a.py:3 X1 bad -> do this" in text
+
+
+def test_render_text_reports_truncation_count() -> None:
+    violations = tuple(Violation(message=f"m{i}", code=str(i)) for i in range(5))
+    result = GateResult(
+        name="ruff",
+        passed=False,
+        violations=violations,
+        violation_count=5,
+    )
+
+    text = render_text(_build([result], max_violations=2))
+
+    assert "... 3 more not shown" in text
+
+
+def test_render_text_has_no_next_action_when_passed() -> None:
+    text = render_text(_build([GateResult(name="ruff", passed=True)]))
+
+    assert "next:" not in text
+
+
+def test_next_actions_point_at_violations_when_failed() -> None:
+    result = GateResult(
+        name="mypy",
+        passed=False,
+        violations=(Violation(message="bad", file="a.py", line=1),),
+        violation_count=1,
+    )
+
+    assert "fix the violations" in render_text(_build([result]))
+
+
+def test_dedupe_single_violation_has_no_more_suffix() -> None:
+    deduped = dedupe_violations((Violation(message="solo", code="S1"),))
+
+    assert deduped[0].message == "solo"
+
+
+def test_dedupe_two_violations_report_one_more() -> None:
+    violations = tuple(
+        Violation(message="dup", code="D1", file=name, line=1)
+        for name in ("a.py", "b.py")
+    )
+
+    deduped = dedupe_violations(violations)
+
+    assert "(+1 more" in deduped[0].message
