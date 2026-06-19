@@ -111,3 +111,13 @@ def test_git_dirty_tracks_uncommitted_changes(tmp_path: Path) -> None:
 
 def test_git_dirty_false_outside_repo(tmp_path: Path) -> None:
     assert git_dirty(tmp_path) is False
+
+
+def test_python_after_non_python_is_still_collected(tmp_path: Path) -> None:
+    _make_repo(tmp_path)
+    src = tmp_path / "src"
+    src.mkdir()
+    (src / "aaa.txt").write_text("not python\n")  # sorts before the .py file
+    (src / "zzz.py").write_text("y = 1\n")
+
+    assert changed_python_files(tmp_path, None, ("src",)) == ["src/zzz.py"]

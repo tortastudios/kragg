@@ -15,6 +15,11 @@ def test_policy_show_returns_success(tmp_path: Path, monkeypatch: Any) -> None:
     assert main(["policy", "show"]) == 0
 
 
+def test_no_command_exits_with_usage_code(capsys: Any) -> None:
+    assert main([]) == 2
+    capsys.readouterr()
+
+
 def test_doctor_fails_without_project_files(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv(environment.ENV_VAR, raising=False)
