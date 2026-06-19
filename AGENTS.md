@@ -46,6 +46,8 @@ Do not optimize for elegance by expanding scope. Do not optimize for performance
 - `src/kragg/catalog.py`: assembles the concrete check/security pipelines from the gates.
 - `src/kragg/parsers.py`: tool output parsers producing structured violations.
 - `src/kragg/report.py`: consolidated reports, JSON schema, text rendering, exit codes.
+- `src/kragg/critical.py`: resolves public critical functions to source file + coverage key; shared by coverage and mutation surfaces.
+- `src/kragg/coverage.py`: reads coverage.py JSON, surfaces criticality-ranked coverage gaps (`kragg coverage`).
 - `src/kragg/changes.py`: git-based changed-file detection for `--changed`.
 - `src/kragg/journal.py`: `.kragg/history.jsonl` run journal backing `kragg status`.
 - `src/kragg/hooks.py`: harness hook adapters (`kragg hook claude`).

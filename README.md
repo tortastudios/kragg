@@ -42,6 +42,7 @@ kragg check --file src/foo.py --file src/bar.py
 kragg check --format json     # stable machine-readable schema
 kragg fix                     # auto-fix formatting and safe lint
 kragg map                     # public symbol inventory (what already exists)
+kragg coverage                # uncovered lines in critical functions (ranked)
 kragg brief                   # reviewable digest of the change set
 kragg security
 kragg audit
