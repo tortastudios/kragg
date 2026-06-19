@@ -70,6 +70,29 @@ referenced by tests), bandit, detect-secrets.
 Slow (skipped while fast gates fail): pytest+coverage, **critical-coverage**
 (public critical functions must have no uncovered lines), pip-audit.
 
+## Test depth
+
+Green checkmarks are easy to fake, so kragg looks past them with layered,
+mostly-deterministic signals — each a harder-to-game answer to "do the tests
+actually defend behavior":
+
+- **what's run** — `kragg coverage` surfaces uncovered lines in critical
+  functions, ranked by fan-in, instead of a gameable global percentage; the
+  `critical-coverage` gate fails on any uncovered line in a critical function.
+- **what's defended** — `kragg mutation` runs cosmic-ray over the changed
+  critical files (the criticality graph and git diff keep it cheap) and reports
+  surviving mutants as `file:line` fixes. Accept equivalent mutants with
+  `kragg mutation --update-baseline`.
+- **what's claimed** — `kragg spec` renders test names and docstrings as a
+  documentation tree and flags critical functions that have only example-based
+  tests (property-based tests, via Hypothesis, kill more mutants).
+- **what's trustworthy** — `kragg flaky` mines the run journal for gates that
+  flipped on an unchanged commit; `--rerun N` re-runs the suite and ranks tests
+  by failure ratio (for cron/CI, never the inner loop).
+
+Mutation and active flaky runs are deliberately outside `kragg check`: they are
+on-demand or CI surfaces, not inner-loop gates.
+
 ## Agent-native design
 
 Agents drift where they have freedom, so the scaffold removes the freedom:

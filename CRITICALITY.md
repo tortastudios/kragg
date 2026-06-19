@@ -9,29 +9,29 @@ When editing them, full types, docstrings, and tests are mandatory.
 
 | Function | Fan-in | Fan-out | Centrality | Risk |
 | --- | ---: | ---: | ---: | --- |
-| `kragg.policy.load_policy` | 13 | 5 | 0.0014 | HIGH |
-| `kragg.report.to_payload` | 3 | 5 | 0.0012 | MED |
-| `kragg.changes.changed_python_files` | 3 | 4 | 0.0010 | MED |
-| `kragg.report.render_text` | 3 | 3 | 0.0009 | MED |
+| `kragg.critical.critical_functions` | 3 | 4 | 0.0011 | MED |
+| `kragg.policy.load_policy` | 17 | 5 | 0.0010 | HIGH |
+| `kragg.report.to_payload` | 3 | 5 | 0.0006 | MED |
+| `kragg.changes.changed_python_files` | 4 | 4 | 0.0006 | MED |
 
 ## Non-critical
 
 | Function | Fan-in | Fan-out | Centrality | Risk |
 | --- | ---: | ---: | ---: | --- |
-| `kragg.hooks._run_check` | 2 | 9 | 0.0076 | low |
-| `kragg.catalog.build_check_gates` | 2 | 13 | 0.0074 | low |
-| `kragg.hooks._dispatch` | 1 | 4 | 0.0044 | low |
-| `kragg.hooks._post_edit` | 1 | 4 | 0.0028 | low |
-| `kragg.hooks._stop` | 1 | 4 | 0.0027 | low |
-| `kragg.hooks.run_claude_hook` | 1 | 1 | 0.0022 | low |
-| `kragg.gates.critical_tests.check_critical_tests` | 1 | 4 | 0.0013 | low |
-| `kragg.catalog._project_tool_gate` | 2 | 8 | 0.0012 | low |
-| `kragg.catalog._critical_tests_gate` | 1 | 2 | 0.0011 | low |
-| `kragg.gates.test_quality.check_tests` | 1 | 3 | 0.0011 | low |
-| `kragg.catalog._test_quality_gate` | 1 | 2 | 0.0011 | low |
-| `kragg.gates.criticality.build_call_graph` | 1 | 4 | 0.0011 | low |
-| `kragg.cli._run_pipeline` | 2 | 8 | 0.0010 | low |
-| `kragg.catalog._type_complexity_gate` | 1 | 4 | 0.0010 | low |
-| `kragg.gates.critical_tests.critical_in_files` | 2 | 3 | 0.0009 | low |
-| `kragg.hooks._session_start` | 1 | 4 | 0.0009 | low |
+| `kragg.catalog.build_check_gates` | 2 | 15 | 0.0053 | low |
+| `kragg.hooks._run_check` | 2 | 9 | 0.0050 | low |
+| `kragg.hooks._dispatch` | 1 | 4 | 0.0027 | low |
+| `kragg.hooks._post_edit` | 1 | 4 | 0.0018 | low |
+| `kragg.hooks._stop` | 1 | 4 | 0.0018 | low |
+| `kragg.coverage.critical_gaps` | 2 | 4 | 0.0015 | low |
+| `kragg.hooks.run_claude_hook` | 1 | 1 | 0.0014 | low |
+| `kragg.gates.critical_coverage.check_critical_coverage` | 1 | 2 | 0.0014 | low |
+| `kragg.catalog._critical_coverage_gate` | 1 | 2 | 0.0013 | low |
+| `kragg.gates.critical_tests.check_critical_tests` | 1 | 4 | 0.0007 | low |
+| `kragg.catalog._project_tool_gate` | 2 | 8 | 0.0007 | low |
+| `kragg.gates.test_quality.check_tests` | 1 | 3 | 0.0006 | low |
+| `kragg.catalog._test_quality_gate` | 1 | 2 | 0.0006 | low |
+| `kragg.catalog._critical_tests_gate` | 1 | 2 | 0.0006 | low |
+| `kragg.gates.criticality.build_call_graph` | 1 | 4 | 0.0006 | low |
+| `kragg.commands._run_pipeline` | 2 | 8 | 0.0006 | low |
 
