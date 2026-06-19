@@ -14,6 +14,7 @@ surviving mutants into violations.
 
 from __future__ import annotations
 
+import ast
 import json
 import shlex
 from dataclasses import dataclass
@@ -28,6 +29,8 @@ from kragg.runner import run_command
 
 DEFAULT_TIMEOUT = 30.0
 BASELINE_RELATIVE = ".kragg/mutants.baseline"
+
+type _Span = tuple[int, int, int, int]
 
 
 class MutationError(RuntimeError):
@@ -94,6 +97,7 @@ class Survivor:
 
     file: str
     line: int
+    column: int
     function: str
     operator: str
     occurrence: int
@@ -152,16 +156,24 @@ def _survivor_from(
     mutation = _first_mutation(work_item)
     if mutation is None:
         return None
-    start = mutation.get("start_pos")
-    line = start[0] if isinstance(start, list) and start else 0
+    line, column = _start_position(mutation.get("start_pos"))
     return Survivor(
         file=str(mutation.get("module_path", "")),
-        line=line if isinstance(line, int) else 0,
+        line=line,
+        column=column,
         function=str(mutation.get("definition_name", "")),
         operator=str(mutation.get("operator_name", "")),
         occurrence=_as_int(mutation.get("occurrence")),
         diff=str(work_result.get("diff", "")),
     )
+
+
+def _start_position(start: object) -> tuple[int, int]:
+    if isinstance(start, list) and len(start) >= 2:
+        line = start[0] if isinstance(start[0], int) else 0
+        column = start[1] if isinstance(start[1], int) else 0
+        return line, column
+    return 0, 0
 
 
 def _first_mutation(work_item: object) -> dict[str, object] | None:
@@ -215,6 +227,9 @@ def _mutate_file(
     config_path = artifact_dir / f"{stem}.toml"
     session_path = artifact_dir / f"{stem}.sqlite"
     config_path.write_text(build_config(target, test_command))
+    # cosmic-ray init refuses to overwrite a session that already has results,
+    # so each run starts from a fresh session over the current code.
+    session_path.unlink(missing_ok=True)
     for step in ("init", "exec"):
         result = _cosmic_ray(env, root, step, str(config_path), str(session_path))
         if not result.passed:
@@ -222,7 +237,70 @@ def _mutate_file(
                 f"cosmic-ray {step} failed for {target}: {result.output}"
             )
     dump = _cosmic_ray(env, root, "dump", str(session_path))
-    return list(parse_survivors(dump.stdout))
+    survivors = drop_annotation_mutants(parse_survivors(dump.stdout), root / target)
+    return list(survivors)
+
+
+def drop_annotation_mutants(
+    survivors: tuple[Survivor, ...],
+    path: Path,
+) -> tuple[Survivor, ...]:
+    """Drop survivors that fall inside a type annotation.
+
+    Under ``from __future__ import annotations`` annotations are strings and
+    never evaluated, so mutating an operator inside one (``str | None`` ->
+    ``str & None``) has no runtime effect and can never be killed — it only
+    ever survives. Dropping those removes a large class of equivalent mutants.
+    """
+    spans = _annotation_spans(path)
+    if not spans:
+        return survivors
+    return tuple(s for s in survivors if not _within_any(s.line, s.column, spans))
+
+
+def _annotation_spans(path: Path) -> list[_Span]:
+    try:
+        tree = ast.parse(path.read_text(), filename=str(path))
+    except (OSError, SyntaxError):
+        return []
+    spans: list[_Span] = []
+    for node in ast.walk(tree):
+        annotation = _annotation_of(node)
+        if annotation is not None and annotation.end_lineno is not None:
+            spans.append(
+                (
+                    annotation.lineno,
+                    annotation.col_offset,
+                    annotation.end_lineno,
+                    annotation.end_col_offset or 0,
+                )
+            )
+    return spans
+
+
+def _annotation_of(node: ast.AST) -> ast.expr | None:
+    if isinstance(node, ast.arg):
+        return node.annotation
+    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+        return node.returns
+    if isinstance(node, ast.AnnAssign):
+        return node.annotation
+    return None
+
+
+def _within_any(line: int, column: int, spans: list[_Span]) -> bool:
+    return any(_within(line, column, span) for span in spans)
+
+
+def _within(line: int, column: int, span: _Span) -> bool:
+    start_line, start_col, end_line, end_col = span
+    if not start_line <= line <= end_line:
+        return False
+    if line == start_line and column < start_col:
+        return False
+    if line == end_line and column > end_col:
+        return False
+    return True
 
 
 def _cosmic_ray(

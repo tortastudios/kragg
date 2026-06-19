@@ -11,6 +11,7 @@ from kragg.mutation import (
     build_config,
     cosmic_ray_available,
     diff_summary,
+    drop_annotation_mutants,
     filter_baselined,
     format_test_command,
     load_baseline,
@@ -172,7 +173,7 @@ def test_parse_survivors_ignores_malformed_lines() -> None:
 
 
 def test_survivor_signature_is_session_independent() -> None:
-    survivor = Survivor("f.py", 2, "vital", "core/Op", 3, "")
+    survivor = Survivor("f.py", 2, 0, "vital", "core/Op", 3, "")
 
     assert survivor.signature() == "f.py::core/Op::3"
 
@@ -227,6 +228,24 @@ def test_run_mutation_reports_exec_failure(tmp_path: Path, monkeypatch: Any) -> 
 
     assert report.error is not None
     assert "exec failed" in report.error
+
+
+def test_drop_annotation_mutants_keeps_defaults_drops_unions(tmp_path: Path) -> None:
+    source = tmp_path / "m.py"
+    code = (
+        "from __future__ import annotations\n\n\n"
+        "def f(x: int = 80) -> str | None:\n"
+        "    return None\n"
+    )
+    source.write_text(code)
+    signature = code.splitlines()[3]
+    in_annotation = Survivor("m.py", 4, signature.index("|"), "f", "op", 0, "")
+    on_default = Survivor("m.py", 4, signature.index("80"), "f", "op", 1, "")
+
+    kept = drop_annotation_mutants((in_annotation, on_default), source)
+
+    assert on_default in kept
+    assert in_annotation not in kept
 
 
 def test_load_baseline_missing_is_empty(tmp_path: Path) -> None:
