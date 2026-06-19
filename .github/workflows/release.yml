@@ -1,0 +1,45 @@
+name: Release
+
+# Publishes to PyPI via Trusted Publishing (OIDC) — no API token or secret.
+# Flow: bump the version, then publish a GitHub Release; this runs on that event.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Build and publish to PyPI
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/kragg/
+    permissions:
+      id-token: write # required for PyPI Trusted Publishing (OIDC)
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v8
+
+      - name: Build sdist and wheel
+        run: uv build
+
+      - name: Check distribution metadata
+        run: uvx twine check dist/*
+
+      - name: Verify the built version matches the release tag
+        run: |
+          wheel=$(ls dist/*.whl)
+          version="v$(basename "$wheel" | cut -d '-' -f 2)"
+          tag="${{ github.event.release.tag_name }}"
+          if [ "$version" != "$tag" ]; then
+            echo "::error::built version $version != release tag $tag (bump pyproject.toml + __init__.py before tagging)"
+            exit 1
+          fi
+          echo "Publishing $version"
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
