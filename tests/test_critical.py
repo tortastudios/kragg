@@ -82,6 +82,12 @@ def test_unresolvable_qualname_is_dropped(tmp_path: Path) -> None:
     assert critical_functions(tmp_path, ("src",)) == ()
 
 
+def test_missing_fan_in_defaults_to_zero(tmp_path: Path) -> None:
+    _make_tree(tmp_path, [{"name": "app.core.vital", "is_critical": True}])
+
+    assert critical_functions(tmp_path, ("src",))[0].fan_in == 0
+
+
 def test_critical_files_dedupes_by_file(tmp_path: Path) -> None:
     _make_tree(
         tmp_path,

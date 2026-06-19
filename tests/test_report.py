@@ -26,6 +26,24 @@ def _build(results: list[GateResult], max_violations: int = 25):  # type: ignore
     )
 
 
+def test_summary_counts_distinguish_passed_failed_skipped() -> None:
+    payload = to_payload(
+        _build(
+            [
+                GateResult(name="ruff", passed=True),
+                GateResult(name="mypy", passed=False, violation_count=1),
+                GateResult(name="pytest", passed=False, skipped=True),
+            ]
+        )
+    )
+
+    summary = payload["summary"]
+    assert summary["gates_total"] == 3
+    assert summary["gates_passed"] == 1
+    assert summary["gates_failed"] == 1
+    assert summary["gates_skipped"] == 1
+
+
 def test_exit_code_mapping() -> None:
     assert _build([GateResult(name="ruff", passed=True)]).exit_code == EXIT_OK
     assert (
