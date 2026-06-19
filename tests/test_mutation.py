@@ -248,6 +248,19 @@ def test_drop_annotation_mutants_keeps_defaults_drops_unions(tmp_path: Path) -> 
     assert in_annotation not in kept
 
 
+def test_drop_annotation_mutants_covers_type_aliases(tmp_path: Path) -> None:
+    source = tmp_path / "m.py"
+    code = (
+        "from __future__ import annotations\n\n\n"
+        "type Alias = dict[str, int]\n"
+    )
+    source.write_text(code)
+    alias_line = code.splitlines()[3]
+    inside = Survivor("m.py", 4, alias_line.index("dict"), "Alias", "op", 0, "")
+
+    assert drop_annotation_mutants((inside,), source) == ()
+
+
 def test_load_baseline_missing_is_empty(tmp_path: Path) -> None:
     assert load_baseline(tmp_path) == set()
 
