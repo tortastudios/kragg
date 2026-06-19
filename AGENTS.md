@@ -50,7 +50,7 @@ Do not optimize for elegance by expanding scope. Do not optimize for performance
 - `src/kragg/critical.py`: resolves public critical functions to source file + coverage key; shared by coverage and mutation surfaces.
 - `src/kragg/coverage.py`: reads coverage.py JSON, surfaces criticality-ranked coverage gaps (`kragg coverage`).
 - `src/kragg/mutation.py`: targeted mutation testing via cosmic-ray over changed critical files (`kragg mutation`).
-- `src/kragg/spec.py`: extracts the test suite's name/docstring tree as a readable spec (`kragg spec`).
+- `src/kragg/spec.py`: extracts the test suite's name/docstring tree and flags critical functions lacking property-based tests (`kragg spec`).
 - `src/kragg/changes.py`: git-based changed-file detection for `--changed`.
 - `src/kragg/journal.py`: `.kragg/history.jsonl` run journal backing `kragg status`.
 - `src/kragg/hooks.py`: harness hook adapters (`kragg hook claude`).
