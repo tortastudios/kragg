@@ -28,7 +28,9 @@ def test_doctor_fails_without_project_files(tmp_path: Path, monkeypatch: Any) ->
 
 
 def _make_project(tmp_path: Path) -> Path:
-    (tmp_path / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\n\n[tool.mypy]\nstrict = true\n'
+    )
     package = tmp_path / "src" / "demo"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text('"""Demo."""\n')

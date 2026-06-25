@@ -113,6 +113,8 @@ def _ensure_pyproject_config(root: Path, project_name: str) -> None:
     additions: list[str] = []
     if "[tool.kragg]" not in content:
         additions.append(TOOL_KRAGG)
+    if "[tool.mypy]" not in content:
+        additions.append("\n" + STRICT_MYPY)
     if "[dependency-groups]" not in content and "kragg" not in content:
         additions.append(
             "\n[dependency-groups]\n"
@@ -170,6 +172,7 @@ coverage_fail_under = 80
 type_max_nesting_depth = 2
 type_max_length = 40
 {layers}
+{STRICT_MYPY}
 [tool.pytest.ini_options]
 addopts = "--cov=src --cov-report=term-missing --cov-fail-under=80 -q"
 testpaths = ["tests"]
@@ -191,6 +194,13 @@ def _toml_list(items: list[str]) -> str:
         return "[]"
     body = "".join(f"    {item},\n" for item in items)
     return f"[\n{body}]"
+
+
+STRICT_MYPY = """[tool.mypy]
+python_version = "3.12"
+strict = true
+enable_error_code = ["ignore-without-code"]
+"""
 
 
 TOOL_KRAGG = """

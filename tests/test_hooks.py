@@ -8,7 +8,9 @@ from kragg.models import CompletedCommand
 
 
 def _make_project(tmp_path: Path) -> None:
-    (tmp_path / "pyproject.toml").write_text('[project]\nname = "demo"\n')
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\nname = "demo"\n\n[tool.mypy]\nstrict = true\n'
+    )
     package = tmp_path / "src" / "demo"
     package.mkdir(parents=True)
     (package / "__init__.py").write_text('"""Demo."""\n')

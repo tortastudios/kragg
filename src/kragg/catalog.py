@@ -22,6 +22,7 @@ from kragg.gates import (
     secrets,
     test_quality,
     type_complexity,
+    typing_strictness,
 )
 from kragg.models import GateResult, Violation
 from kragg.parsers import (
@@ -62,6 +63,11 @@ def build_check_gates(
             lambda: _project_tool_gate(
                 "mypy", env, root, "mypy", targets, parse_mypy_output
             ),
+        ),
+        GateSpec(
+            "typing-strictness",
+            FAST,
+            lambda: _typing_strictness_gate(root, policy),
         ),
         GateSpec("radon-cc", FAST, lambda: _radon_cc_gate(root, targets)),
         GateSpec("radon-mi", FAST, lambda: _radon_mi_gate(root, targets)),
@@ -327,6 +333,16 @@ def _type_complexity_gate(
         name="type-complexity",
         passed=not violations,
         violations=tuple(violations),
+        violation_count=len(violations),
+    )
+
+
+def _typing_strictness_gate(root: Path, policy: KraggPolicy) -> GateResult:
+    violations = typing_strictness.check_typing_strictness(root, policy.source_paths)
+    return GateResult(
+        name="typing-strictness",
+        passed=not violations,
+        violations=violations,
         violation_count=len(violations),
     )
 
