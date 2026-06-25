@@ -21,6 +21,8 @@ class KraggPolicy:
     max_file_lines: int = 500
     max_public_symbols: int = 20
     structure_exclude: tuple[str, ...] = ()
+    mutation_include: tuple[str, ...] = ()
+    mutation_exclude: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, object]:
         return cast(dict[str, object], asdict(self))
@@ -61,6 +63,16 @@ def load_policy(root: Path) -> KraggPolicy:
             table,
             "structure_exclude",
             default.structure_exclude,
+        ),
+        mutation_include=_get_str_tuple(
+            table,
+            "mutation_include",
+            default.mutation_include,
+        ),
+        mutation_exclude=_get_str_tuple(
+            table,
+            "mutation_exclude",
+            default.mutation_exclude,
         ),
     )
 

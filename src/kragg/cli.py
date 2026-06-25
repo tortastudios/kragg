@@ -90,6 +90,12 @@ def build_parser() -> argparse.ArgumentParser:
     mutation_parser.add_argument("--since", default=None)
     mutation_parser.add_argument("--all", dest="mutate_all", action="store_true")
     mutation_parser.add_argument(
+        "--path",
+        dest="paths",
+        action="append",
+        help="mutate these files instead of criticality (repeatable, globs)",
+    )
+    mutation_parser.add_argument(
         "--update-baseline",
         dest="update_baseline",
         action="store_true",

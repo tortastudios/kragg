@@ -69,6 +69,24 @@ def test_skips_private_and_non_critical(tmp_path: Path) -> None:
     assert critical_functions(tmp_path, ("src",)) == ()
 
 
+def test_include_private_returns_private_critical(tmp_path: Path) -> None:
+    _make_tree(tmp_path, [{"name": "app.core._hidden", "is_critical": True}])
+
+    assert critical_functions(tmp_path, ("src",)) == ()
+    private = critical_functions(tmp_path, ("src",), include_private=True)
+    assert len(private) == 1
+    assert private[0].file == "src/app/core.py"
+
+
+def test_critical_files_include_private_selects_the_file(tmp_path: Path) -> None:
+    _make_tree(tmp_path, [{"name": "app.core._call", "is_critical": True}])
+
+    assert critical_files(tmp_path, ("src",)) == ()
+    assert critical_files(tmp_path, ("src",), include_private=True) == (
+        "src/app/core.py",
+    )
+
+
 def test_missing_criticality_json_returns_empty(tmp_path: Path) -> None:
     assert critical_functions(tmp_path, ("src",)) == ()
 

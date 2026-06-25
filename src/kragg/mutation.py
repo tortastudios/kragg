@@ -3,9 +3,9 @@
 Mutation testing is the rigorous form of kragg's founding claim: coverage
 proves a line ran, mutation proves a test would *notice* if that line broke.
 The cost that sinks generic mutation tools is that they mutate everything;
-kragg has a criticality call-graph and a git diff, so it mutates only the
-changed files that define a critical function — usually a handful, not the
-whole tree.
+kragg scopes by criticality (or an explicit ``mutation_include``) and a git
+diff, so it mutates only a handful of in-scope changed files, not the whole
+tree.
 
 This module is the planning half — selecting targets and generating cosmic-ray
 config. The runner half (same module, below) executes cosmic-ray and turns
@@ -23,6 +23,7 @@ from pathlib import Path
 from kragg.changes import changed_python_files
 from kragg.critical import critical_files
 from kragg.environment import ProjectEnvironment
+from kragg.globs import matches_any
 from kragg.models import CompletedCommand, Violation
 from kragg.policy import KraggPolicy
 from kragg.runner import run_command
@@ -42,20 +43,53 @@ def select_targets(
     policy: KraggPolicy,
     since: str | None,
     mutate_all: bool,
+    include_override: tuple[str, ...] = (),
 ) -> tuple[str, ...] | None:
-    """Source files to mutate: critical files, narrowed to the change set.
+    """Files to mutate: the scope set, narrowed to the change set.
+
+    Scope is ``mutation_include`` (or a ``--path`` override) when set — globs
+    that REPLACE criticality, to reach high-value targets that modest fan-in
+    keeps out of the criticality graph — else the files defining any critical
+    function, public or private (mutation mutates whole modules). Either way,
+    ``mutation_exclude`` is then removed (fail-safe glue like telemetry, where
+    mutants are mostly equivalent).
 
     Returns None when the change set cannot be computed (not a git repository)
     and ``mutate_all`` is False, so the caller can ask for ``--all`` instead.
     """
-    criticals = critical_files(root, policy.source_paths)
+    include = include_override or policy.mutation_include
+    if include:
+        base = _expand(root, policy.source_paths, include)
+    else:
+        base = critical_files(root, policy.source_paths, include_private=True)
+    base = tuple(
+        path for path in base if not matches_any(path, policy.mutation_exclude)
+    )
     if mutate_all:
-        return criticals
+        return base
     changed = changed_python_files(root, since, policy.source_paths)
     if changed is None:
         return None
     changed_set = set(changed)
-    return tuple(path for path in criticals if path in changed_set)
+    return tuple(path for path in base if path in changed_set)
+
+
+def _expand(
+    root: Path,
+    source_paths: tuple[str, ...],
+    patterns: tuple[str, ...],
+) -> tuple[str, ...]:
+    """Resolve include globs to concrete repo-relative source files."""
+    files: list[str] = []
+    for source in source_paths:
+        src_root = root / source
+        if not src_root.is_dir():
+            continue
+        for path in sorted(src_root.rglob("*.py")):
+            relative = path.relative_to(root).as_posix()
+            if matches_any(relative, patterns):
+                files.append(relative)
+    return tuple(files)
 
 
 def format_test_command(

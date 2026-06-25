@@ -1,10 +1,11 @@
-"""Locate public critical functions on disk.
+"""Locate critical functions on disk.
 
 Reads ``.kragg/criticality.json`` (written by ``kragg criticality --write``)
-and resolves each public critical function to its source file and the function
-key used by coverage.py's JSON report. Shared by the coverage and mutation
-surfaces, which both need to turn a criticality qualname into a concrete file
-and (for coverage) a per-function key.
+and resolves each critical function to its source file and the function key
+used by coverage.py's JSON report. Public functions only by default (coverage
+keys on the public function); ``include_private=True`` also returns private
+critical functions, which mutation needs — it mutates whole modules, so a
+HIGH-risk private boundary like ``Client._call`` must still select its file.
 """
 
 from __future__ import annotations
@@ -20,7 +21,7 @@ type _ModuleFiles = dict[str, str]
 
 @dataclass(frozen=True)
 class CriticalFunction:
-    """A public critical function resolved to its location on disk."""
+    """A critical function resolved to its location on disk."""
 
     qualname: str
     file: str
@@ -31,9 +32,14 @@ class CriticalFunction:
 def critical_functions(
     root: Path,
     source_paths: tuple[str, ...],
+    include_private: bool = False,
 ) -> tuple[CriticalFunction, ...]:
-    """Resolve every public critical function to a file and coverage key."""
-    entries = _public_critical_entries(root)
+    """Resolve critical functions to a file and coverage key.
+
+    Public only unless ``include_private`` is set (mutation passes it: the file,
+    not the function, is the mutation unit, so private criticals must select).
+    """
+    entries = _critical_entries(root, include_private)
     if not entries:
         return ()
     module_files = _module_file_map(root, source_paths)
@@ -49,23 +55,25 @@ def critical_functions(
 def critical_files(
     root: Path,
     source_paths: tuple[str, ...],
+    include_private: bool = False,
 ) -> tuple[str, ...]:
     """Return the distinct source files that define a critical function."""
     seen: list[str] = []
-    for function in critical_functions(root, source_paths):
+    for function in critical_functions(root, source_paths, include_private):
         if function.file not in seen:
             seen.append(function.file)
     return tuple(seen)
 
 
-def _public_critical_entries(root: Path) -> list[tuple[str, int]]:
+def _critical_entries(root: Path, include_private: bool) -> list[tuple[str, int]]:
     entries: list[tuple[str, int]] = []
     for item in _read_criticality(root):
         if not item.get("is_critical"):
             continue
         name = str(item.get("name", ""))
-        if name and not _is_private(name):
-            entries.append((name, _as_int(item.get("fan_in"))))
+        if not name or (not include_private and _is_private(name)):
+            continue
+        entries.append((name, _as_int(item.get("fan_in"))))
     return entries
 
 

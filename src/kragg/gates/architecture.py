@@ -15,10 +15,10 @@ but remain subject to every other gate, so the cap stays meaningful repo-wide.
 from __future__ import annotations
 
 import ast
-from fnmatch import fnmatchcase
 from pathlib import Path
 
 from kragg.gates.criticality import module_imports, module_name
+from kragg.globs import matches_any
 from kragg.models import Violation
 
 
@@ -71,7 +71,7 @@ def check_structure(
     violations: list[Violation] = []
     for path, _module, tree in _source_modules(root, source_paths):
         relative = path.relative_to(root).as_posix()
-        if _is_excluded(relative, exclude):
+        if matches_any(relative, exclude):
             continue
         lines = path.read_text().count("\n") + 1
         if lines > max_file_lines:
@@ -115,10 +115,6 @@ def _source_modules(
                 continue
             modules.append((path, module_name(path, src_root), tree))
     return modules
-
-
-def _is_excluded(relative: str, exclude: tuple[str, ...]) -> bool:
-    return any(fnmatchcase(relative, pattern) for pattern in exclude)
 
 
 def _layer_index(module: str, layers: tuple[str, ...]) -> int | None:
