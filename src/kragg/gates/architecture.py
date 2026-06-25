@@ -6,12 +6,16 @@ A module in a layer may import its own layer or lower layers, never a
 higher one. Modules outside every layer are unrestricted.
 
 Structural budgets cap file length and public symbols per module so
-god-files mechanically cannot accumulate.
+god-files mechanically cannot accumulate. Flat or generated files that
+legitimately exceed the budgets can be exempted with ``structure_exclude``
+(repo-root-relative ``fnmatch`` patterns); exempted files skip both budgets
+but remain subject to every other gate, so the cap stays meaningful repo-wide.
 """
 
 from __future__ import annotations
 
 import ast
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 from kragg.gates.criticality import module_imports, module_name
@@ -56,11 +60,19 @@ def check_structure(
     source_paths: tuple[str, ...],
     max_file_lines: int,
     max_public_symbols: int,
+    exclude: tuple[str, ...] = (),
 ) -> tuple[Violation, ...]:
-    """Return violations for files exceeding structural budgets."""
+    """Return violations for files exceeding structural budgets.
+
+    Files whose repo-root-relative POSIX path matches an ``exclude`` pattern
+    (``fnmatch``, case-sensitive, ``*`` spans ``/``) skip both the file- and
+    symbol-budget checks.
+    """
     violations: list[Violation] = []
     for path, _module, tree in _source_modules(root, source_paths):
-        relative = str(path.relative_to(root))
+        relative = path.relative_to(root).as_posix()
+        if _is_excluded(relative, exclude):
+            continue
         lines = path.read_text().count("\n") + 1
         if lines > max_file_lines:
             violations.append(
@@ -103,6 +115,10 @@ def _source_modules(
                 continue
             modules.append((path, module_name(path, src_root), tree))
     return modules
+
+
+def _is_excluded(relative: str, exclude: tuple[str, ...]) -> bool:
+    return any(fnmatchcase(relative, pattern) for pattern in exclude)
 
 
 def _layer_index(module: str, layers: tuple[str, ...]) -> int | None:

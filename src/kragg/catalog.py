@@ -347,6 +347,7 @@ def _structure_gate(root: Path, policy: KraggPolicy) -> GateResult:
         policy.source_paths,
         policy.max_file_lines,
         policy.max_public_symbols,
+        policy.structure_exclude,
     )
     return GateResult(
         name="structure",

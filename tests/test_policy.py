@@ -21,6 +21,7 @@ def test_default_policy_values_are_pinned() -> None:
     assert policy.max_violations_per_gate == 25
     assert policy.max_file_lines == 500
     assert policy.max_public_symbols == 20
+    assert policy.structure_exclude == ()
 
 
 def test_policy_is_immutable() -> None:
@@ -54,6 +55,16 @@ def test_load_policy_uses_pyproject_overrides(tmp_path: Path) -> None:
     assert policy.source_paths == ("lib",)
     assert policy.coverage_fail_under == 95
     assert policy.max_violations_per_gate == 25
+
+
+def test_load_policy_reads_structure_exclude_list(tmp_path: Path) -> None:
+    (tmp_path / "kragg.toml").write_text(
+        'structure_exclude = ["src/app/icons.py", "*_pb2.py"]\n'
+    )
+
+    policy = load_policy(tmp_path)
+
+    assert policy.structure_exclude == ("src/app/icons.py", "*_pb2.py")
 
 
 def test_kragg_toml_takes_precedence_over_pyproject(tmp_path: Path) -> None:
