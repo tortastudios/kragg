@@ -19,6 +19,7 @@ from kragg.gates import (
     critical_coverage,
     critical_tests,
     halstead,
+    nullable_default,
     secrets,
     test_quality,
     type_complexity,
@@ -84,6 +85,11 @@ def build_check_gates(
             skip_reason=None if len(policy.layers) >= 2 else "no layers configured",
         ),
         GateSpec("structure", FAST, lambda: _structure_gate(root, policy)),
+        GateSpec(
+            "nullable-default",
+            FAST,
+            lambda: _nullable_default_gate(root, policy),
+        ),
         GateSpec(
             "critical-tests",
             FAST,
@@ -333,6 +339,16 @@ def _type_complexity_gate(
         name="type-complexity",
         passed=not violations,
         violations=tuple(violations),
+        violation_count=len(violations),
+    )
+
+
+def _nullable_default_gate(root: Path, policy: KraggPolicy) -> GateResult:
+    violations = nullable_default.check_nullable_defaults(root, policy.source_paths)
+    return GateResult(
+        name="nullable-default",
+        passed=not violations,
+        violations=violations,
         violation_count=len(violations),
     )
 
