@@ -61,9 +61,13 @@ kragg policy show
 
 ## Gates
 
-Fast (always all run): ruff, mypy, radon-cc, radon-mi, halstead,
-type-complexity, **boundaries** (layered import contract from
-`[tool.kragg] layers`), **structure** (file/symbol budgets),
+Fast (always all run): ruff, mypy, **typing-strictness** (the project's mypy
+config actually meets the strict floor — no missing/loosened flags, no
+`ignore_errors`, no bare `# type: ignore`; makes `strict-ai-python` a verified
+contract instead of a label), radon-cc, radon-mi, halstead, type-complexity,
+**boundaries** (layered import contract from `[tool.kragg] layers`),
+**structure** (file/symbol budgets), **nullable-default** (arithmetic on
+`.get(key, default)` results, which crash when the key is present-but-null),
 **critical-tests** (critical functions cannot change without test changes),
 **test-quality** (no assertion-free tests; critical functions must be
 referenced by tests), bandit, detect-secrets.
