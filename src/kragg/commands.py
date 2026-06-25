@@ -279,7 +279,13 @@ def cmd_mutation(args: argparse.Namespace) -> int:
     env = _project_environment(root)
     if env is None:
         return EXIT_ENVIRONMENT
-    targets = mutation.select_targets(root, policy, args.since, args.mutate_all)
+    targets = mutation.select_targets(
+        root,
+        policy,
+        args.since,
+        args.mutate_all,
+        include_override=tuple(args.paths or ()),
+    )
     if targets is None:
         print("not a git repository (use --all)", file=sys.stderr)
         return EXIT_USAGE

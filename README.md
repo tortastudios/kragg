@@ -153,6 +153,13 @@ structure_exclude = [
     "src/app/icons.py",  # 4k lines of generated base64 icon data
     "*_pb2.py",          # protobuf-generated modules, any depth
 ]
+mutation_include = [
+    # explicit mutation targets (globs); REPLACES criticality as the base set,
+    # to reach high-value logic that modest fan-in keeps out of the graph
+    "src/billing/entitlement_engine.py",
+    "src/billing/*.py",
+]
+mutation_exclude = ["src/observability.py"]  # fail-safe glue; mutants mostly equivalent
 ```
 
 `structure_exclude` exempts matching files from the **structure** gate's
@@ -162,6 +169,18 @@ genuinely flat data, vendored code, or generated modules you can't annotate.
 Patterns are repo-root-relative POSIX paths matched with `fnmatch`
 (case-sensitive); `*` matches any characters including `/`, so
 `src/generated/*` exempts that whole subtree — scope patterns narrowly.
+
+`mutation_include` / `mutation_exclude` scope `kragg mutation` (same glob
+convention). Mutation scope is its own axis, not just criticality: by default
+it targets the files defining any critical function — public *or* private (it
+mutates whole modules, so a high-risk private boundary like `Client._call`
+still counts). `mutation_include` **replaces** that with an explicit set —
+reach for it to mutate high-value logic (access checks, billing math) that
+modest fan-in keeps out of the criticality graph. `mutation_exclude` drops
+files even when critical: fail-safe glue like telemetry, where `try/except:
+return` swallowing makes most mutants equivalent, so a high survival rate there
+is expected, not a test gap. Ad-hoc override: `kragg mutation --all --path
+"src/billing/*.py"` (repeatable).
 
 ## V1 scope
 

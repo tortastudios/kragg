@@ -22,6 +22,8 @@ def test_default_policy_values_are_pinned() -> None:
     assert policy.max_file_lines == 500
     assert policy.max_public_symbols == 20
     assert policy.structure_exclude == ()
+    assert policy.mutation_include == ()
+    assert policy.mutation_exclude == ()
 
 
 def test_policy_is_immutable() -> None:
@@ -65,6 +67,18 @@ def test_load_policy_reads_structure_exclude_list(tmp_path: Path) -> None:
     policy = load_policy(tmp_path)
 
     assert policy.structure_exclude == ("src/app/icons.py", "*_pb2.py")
+
+
+def test_load_policy_reads_mutation_scope_lists(tmp_path: Path) -> None:
+    (tmp_path / "kragg.toml").write_text(
+        'mutation_include = ["src/billing/engine.py", "src/billing/*.py"]\n'
+        'mutation_exclude = ["src/observability.py"]\n'
+    )
+
+    policy = load_policy(tmp_path)
+
+    assert policy.mutation_include == ("src/billing/engine.py", "src/billing/*.py")
+    assert policy.mutation_exclude == ("src/observability.py",)
 
 
 def test_kragg_toml_takes_precedence_over_pyproject(tmp_path: Path) -> None:

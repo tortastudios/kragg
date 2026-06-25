@@ -1,6 +1,7 @@
 import json
 import subprocess
 import tomllib
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -123,6 +124,48 @@ def test_select_targets_all_returns_all_critical_files(tmp_path: Path) -> None:
     targets = select_targets(tmp_path, POLICY, None, True)
 
     assert set(targets) == {"src/app/core.py", "src/app/util.py"}
+
+
+def test_mutation_include_replaces_criticality(tmp_path: Path) -> None:
+    # util.py defines no critical function; include targets it anyway
+    _repo(tmp_path, [{"name": "app.core.vital", "is_critical": True, "fan_in": 5}])
+    policy = replace(POLICY, mutation_include=("src/app/util.py",))
+
+    assert select_targets(tmp_path, policy, None, True) == ("src/app/util.py",)
+
+
+def test_mutation_include_expands_globs(tmp_path: Path) -> None:
+    _repo(tmp_path, _two_criticals())
+    policy = replace(POLICY, mutation_include=("src/app/core.py", "src/app/util.py"))
+
+    targets = select_targets(tmp_path, policy, None, True)
+
+    assert set(targets) == {"src/app/core.py", "src/app/util.py"}
+
+
+def test_mutation_exclude_drops_a_critical_file(tmp_path: Path) -> None:
+    _repo(tmp_path, _two_criticals())
+    policy = replace(POLICY, mutation_exclude=("src/app/util.py",))
+
+    assert select_targets(tmp_path, policy, None, True) == ("src/app/core.py",)
+
+
+def test_private_critical_file_is_now_selected(tmp_path: Path) -> None:
+    # only a PRIVATE critical function — dropped under the old public-only
+    # filter, selected now because mutation mutates the whole module
+    _repo(tmp_path, [{"name": "app.core._call", "is_critical": True, "fan_in": 5}])
+
+    assert select_targets(tmp_path, POLICY, None, True) == ("src/app/core.py",)
+
+
+def test_path_override_acts_as_include(tmp_path: Path) -> None:
+    _repo(tmp_path, _two_criticals())
+
+    targets = select_targets(
+        tmp_path, POLICY, None, True, include_override=("src/app/util.py",)
+    )
+
+    assert targets == ("src/app/util.py",)
 
 
 def test_select_targets_non_git_returns_none(tmp_path: Path) -> None:
