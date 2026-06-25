@@ -20,6 +20,7 @@ class KraggPolicy:
     layers: tuple[str, ...] = ()
     max_file_lines: int = 500
     max_public_symbols: int = 20
+    structure_exclude: tuple[str, ...] = ()
 
     def as_dict(self) -> dict[str, object]:
         return cast(dict[str, object], asdict(self))
@@ -55,6 +56,11 @@ def load_policy(root: Path) -> KraggPolicy:
             table,
             "max_public_symbols",
             default.max_public_symbols,
+        ),
+        structure_exclude=_get_str_tuple(
+            table,
+            "structure_exclude",
+            default.structure_exclude,
         ),
     )
 

@@ -141,7 +141,23 @@ coverage_fail_under = 80
 type_max_nesting_depth = 2
 type_max_length = 40
 max_violations_per_gate = 25
+max_file_lines = 500
+max_public_symbols = 20
+structure_exclude = [
+    # flat or generated files that legitimately exceed the budgets;
+    # document why each entry earns its exemption
+    "src/app/icons.py",  # 4k lines of generated base64 icon data
+    "*_pb2.py",          # protobuf-generated modules, any depth
+]
 ```
+
+`structure_exclude` exempts matching files from the **structure** gate's
+file- and symbol-budgets only — they stay subject to every other gate, so
+the cap stays meaningful repo-wide. Reach for it after splitting fails:
+genuinely flat data, vendored code, or generated modules you can't annotate.
+Patterns are repo-root-relative POSIX paths matched with `fnmatch`
+(case-sensitive); `*` matches any characters including `/`, so
+`src/generated/*` exempts that whole subtree — scope patterns narrowly.
 
 ## V1 scope
 
