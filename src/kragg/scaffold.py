@@ -392,6 +392,14 @@ service, domain, and test slots so everything has exactly one place.
 - Prefer early returns over nested conditionals.
 - Keep functions short and typed.
 - Extract named dataclasses, TypedDicts, or aliases for complex annotations.
+- **External/nullable data** — parse every API, JSON, env, queue, or DB payload
+  into a typed schema (Pydantic, or a TypedDict + validator) at its boundary,
+  with nullable fields typed `T | None`; never feed a raw `dict`/`Any` into
+  arithmetic, indexing, or attribute access. `d.get(k, 0)` returns `None` (not
+  the default) when the key is present-but-null, so add a None/missing-case test
+  for each nullable field. The `typing-strictness` and `nullable-default` gates
+  enforce the modeled cases; the residual — a nullable value typed as non-null —
+  is yours to test.
 - Never hardcode credentials.
 - Never suppress security or typing findings without an explicit reason.
 """
