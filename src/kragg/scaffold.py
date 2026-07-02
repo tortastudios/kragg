@@ -75,7 +75,7 @@ def _guardrail_files(
     mcp_sdk: str,
 ) -> dict[str, str]:
     return {
-        "README.md": _readme(project_name),
+        "README.md": _readme(project_name, package_name, kind),
         ".python-version": "3.12\n",
         ".gitignore": GITIGNORE,
         "pyproject.toml": _pyproject(project_name, package_name, kind, mcp_sdk),
@@ -134,8 +134,18 @@ def _ensure_pyproject_config(root: Path, project_name: str) -> None:
         pyproject.write_text(content.rstrip() + "\n" + "".join(additions))
 
 
-def _readme(project_name: str) -> str:
-    return f"# {project_name}\n\nGenerated with `kragg`.\n"
+def _readme(project_name: str, package_name: str, kind: str) -> str:
+    run = templates.kind_run_instructions(kind, project_name, package_name)
+    return (
+        f"# {project_name}\n\n"
+        "Generated with `kragg`.\n\n"
+        "## Run\n\n"
+        f"{run}\n"
+        "## Quality gates\n\n"
+        "```bash\n"
+        "uv run kragg check\n"
+        "```\n"
+    )
 
 
 def _pyproject(

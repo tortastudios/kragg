@@ -78,6 +78,31 @@ def kind_scripts(kind: str, project_name: str, package: str) -> str:
     return ""
 
 
+def kind_run_instructions(kind: str, project_name: str, package: str) -> str:
+    """Return the README "Run" section body for a project kind."""
+    if kind == "api":
+        return (
+            "```bash\n"
+            f"uv run uvicorn {package}.entrypoints.api:app --port 8000\n"
+            "```\n\n"
+            "Pick the port with `--port`.\n"
+        )
+    if kind == "worker":
+        return f"```bash\nuv run python -m {package}.entrypoints.worker\n```\n"
+    if kind == "mcp":
+        return (
+            "```bash\n"
+            f"uv run {project_name}\n"
+            "```\n\n"
+            "The server binds `127.0.0.1:8000` by default; configure it with "
+            "the `HOST` and `PORT` environment variables:\n\n"
+            "```bash\n"
+            f"PORT=8931 uv run {project_name}\n"
+            "```\n"
+        )
+    return f"```bash\nuv run {project_name} world\n```\n"
+
+
 def module_files(package: str, module: str) -> dict[str, str]:
     """Return generated files for `kragg gen module <name>`."""
     record = _record_name(module)
@@ -255,6 +280,8 @@ def _mcp_entrypoint(package: str, project_name: str, mcp_sdk: str) -> str:
         return _mcp_entrypoint_official(package, project_name)
     return f'''"""Entrypoint: MCP server."""
 
+import os
+
 from fastmcp import FastMCP
 from starlette.requests import Request
 from starlette.responses import JSONResponse
@@ -277,8 +304,10 @@ async def health(request: Request) -> JSONResponse:
 
 
 def main() -> None:
-    """Run the MCP server over streamable HTTP."""
-    mcp.run(transport="http")
+    """Run the MCP server over streamable HTTP (bind via HOST/PORT env vars)."""
+    host = os.environ.get("HOST", "127.0.0.1")
+    port = int(os.environ.get("PORT", "8000"))
+    mcp.run(transport="http", host=host, port=port)
 
 
 if __name__ == "__main__":
@@ -289,11 +318,17 @@ if __name__ == "__main__":
 def _mcp_entrypoint_official(package: str, project_name: str) -> str:
     return f'''"""Entrypoint: MCP server."""
 
+import os
+
 from mcp.server.fastmcp import FastMCP
 
 from {package}.services.greeting import build_greeting
 
-mcp = FastMCP("{project_name}")
+mcp = FastMCP(
+    "{project_name}",
+    host=os.environ.get("HOST", "127.0.0.1"),
+    port=int(os.environ.get("PORT", "8000")),
+)
 
 
 @mcp.tool()
@@ -303,7 +338,7 @@ def greet(name: str) -> str:
 
 
 def main() -> None:
-    """Run the MCP server over streamable HTTP."""
+    """Run the MCP server over streamable HTTP (bind via HOST/PORT env vars)."""
     mcp.run(transport="streamable-http")
 
 

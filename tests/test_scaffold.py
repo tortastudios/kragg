@@ -70,11 +70,15 @@ def test_mcp_kind_defaults_to_fastmcp(tmp_path: Path) -> None:
     server = (target / "src" / "brain_mcp" / "entrypoints" / "server.py").read_text()
     assert "from fastmcp import FastMCP" in server
     assert "@mcp.custom_route" in server
+    assert 'os.environ.get("PORT", "8000")' in server
+    assert 'os.environ.get("HOST", "127.0.0.1")' in server
     test = (target / "tests" / "test_server.py").read_text()
     assert "from fastmcp import Client" in test
     pyproject = (target / "pyproject.toml").read_text()
     assert "fastmcp>=" in pyproject
     assert 'brain-mcp = "brain_mcp.entrypoints.server:main"' in pyproject
+    readme = (target / "README.md").read_text()
+    assert "PORT=8931 uv run brain-mcp" in readme
 
 
 def test_mcp_kind_official_sdk(tmp_path: Path) -> None:
@@ -84,6 +88,7 @@ def test_mcp_kind_official_sdk(tmp_path: Path) -> None:
 
     server = (target / "src" / "brain_mcp" / "entrypoints" / "server.py").read_text()
     assert "from mcp.server.fastmcp import FastMCP" in server
+    assert 'os.environ.get("PORT", "8000")' in server
     pyproject = (target / "pyproject.toml").read_text()
     assert '"mcp>=' in pyproject
     assert "fastmcp" not in pyproject

@@ -35,7 +35,9 @@ tools are missing.
 kragg new my-app --kind cli   # layered skeleton (cli | api | worker | mcp) + uv sync
 kragg new my-mcp --kind mcp   # MCP server: fastmcp (recommended) with an HTTP
                               # /health route + in-memory Client test;
-                              # --mcp-sdk official uses Anthropic's mcp package
+                              # --mcp-sdk official uses Anthropic's mcp package.
+                              # Servers bind 127.0.0.1:8000 by default and read
+                              # HOST/PORT env vars: PORT=8931 uv run my-mcp
 kragg new mcp --package my_pkg  # keep a project name whose derived package would
                               # shadow an installed import (kragg new refuses
                               # names that shadow the stdlib or common packages;
