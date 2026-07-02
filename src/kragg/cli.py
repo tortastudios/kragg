@@ -29,7 +29,39 @@ def build_parser() -> argparse.ArgumentParser:
 
     new_parser = subparsers.add_parser("new", help="create a new project")
     new_parser.add_argument("name")
-    new_parser.add_argument("--kind", choices=templates.KINDS, default="cli")
+    new_parser.add_argument(
+        "--kind",
+        choices=templates.KINDS,
+        default="cli",
+        help=(
+            "project template: cli (argparse entrypoint, default), "
+            "api (FastAPI + health route), worker (bounded loop), "
+            "mcp (MCP server with a sample tool)"
+        ),
+    )
+    new_parser.add_argument(
+        "--mcp-sdk",
+        choices=templates.MCP_SDKS,
+        default="fastmcp",
+        help=(
+            "SDK for --kind mcp: fastmcp (recommended, default) or "
+            "official (Anthropic's mcp package)"
+        ),
+    )
+    new_parser.add_argument(
+        "--package",
+        default=None,
+        help="importable package name (default: derived from the project name)",
+    )
+    new_parser.add_argument(
+        "--allow-shadowing",
+        dest="allow_shadowing",
+        action="store_true",
+        help=(
+            "downgrade the refusal to a warning when the package name "
+            "shadows a stdlib module or a well-known PyPI package"
+        ),
+    )
     new_parser.add_argument("--no-sync", action="store_true")
     new_parser.set_defaults(handler=commands.cmd_new)
 

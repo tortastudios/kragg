@@ -2,11 +2,11 @@ from pathlib import Path
 
 import pytest
 
+from kragg.naming import normalize_package_name
 from kragg.scaffold import (
     create_new_project,
     generate_module,
     initialize_project,
-    normalize_package_name,
 )
 
 
@@ -60,6 +60,66 @@ def test_worker_kind_has_bounded_loop(tmp_path: Path) -> None:
 def test_unknown_kind_is_rejected(tmp_path: Path) -> None:
     with pytest.raises(ValueError):
         create_new_project(tmp_path / "x", "x", kind="spaceship")
+
+
+def test_mcp_kind_defaults_to_fastmcp(tmp_path: Path) -> None:
+    target = tmp_path / "brain-mcp"
+
+    create_new_project(target, "brain-mcp", kind="mcp")
+
+    server = (target / "src" / "brain_mcp" / "entrypoints" / "server.py").read_text()
+    assert "from fastmcp import FastMCP" in server
+    assert "@mcp.custom_route" in server
+    test = (target / "tests" / "test_server.py").read_text()
+    assert "from fastmcp import Client" in test
+    pyproject = (target / "pyproject.toml").read_text()
+    assert "fastmcp>=" in pyproject
+    assert 'brain-mcp = "brain_mcp.entrypoints.server:main"' in pyproject
+
+
+def test_mcp_kind_official_sdk(tmp_path: Path) -> None:
+    target = tmp_path / "brain-mcp"
+
+    create_new_project(target, "brain-mcp", kind="mcp", mcp_sdk="official")
+
+    server = (target / "src" / "brain_mcp" / "entrypoints" / "server.py").read_text()
+    assert "from mcp.server.fastmcp import FastMCP" in server
+    pyproject = (target / "pyproject.toml").read_text()
+    assert '"mcp>=' in pyproject
+    assert "fastmcp" not in pyproject
+
+
+def test_unknown_mcp_sdk_is_rejected(tmp_path: Path) -> None:
+    with pytest.raises(ValueError):
+        create_new_project(tmp_path / "x", "x", kind="mcp", mcp_sdk="homegrown")
+
+
+def test_shadowing_names_are_refused_with_remediation(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="--package"):
+        create_new_project(tmp_path / "mcp", "mcp", kind="mcp")
+    with pytest.raises(ValueError, match="standard library"):
+        create_new_project(tmp_path / "json", "json")
+    assert not (tmp_path / "mcp").exists()
+
+
+def test_package_override_escapes_shadowing(tmp_path: Path) -> None:
+    target = tmp_path / "mcp"
+
+    create_new_project(target, "mcp", kind="mcp", package_name="brain_mcp")
+
+    assert (target / "src" / "brain_mcp" / "entrypoints" / "server.py").exists()
+    pyproject = (target / "pyproject.toml").read_text()
+    assert 'name = "mcp"' in pyproject
+    assert 'packages = ["src/brain_mcp"]' in pyproject
+
+
+def test_allow_shadowing_downgrades_refusal(tmp_path: Path) -> None:
+    target = tmp_path / "mcp"
+
+    written = create_new_project(target, "mcp", kind="mcp", allow_shadowing=True)
+
+    assert written
+    assert (target / "src" / "mcp" / "entrypoints" / "server.py").exists()
 
 
 def test_scaffold_emits_canonical_agent_contract(tmp_path: Path) -> None:

@@ -1,35 +1,33 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
-from kragg import templates
-
-
-def normalize_package_name(name: str) -> str:
-    """Return a valid Python package name derived from a project name."""
-    normalized = re.sub(r"\W+", "_", name).strip("_").lower()
-    if not normalized:
-        return "app"
-    if normalized[0].isdigit():
-        return f"app_{normalized}"
-    return normalized
+from kragg import __version__, templates
+from kragg.naming import normalize_package_name, shadow_conflict, shadow_refusal
 
 
 def create_new_project(
     root: Path,
     project_name: str,
     kind: str = "cli",
+    package_name: str | None = None,
+    mcp_sdk: str = "fastmcp",
+    allow_shadowing: bool = False,
 ) -> list[Path]:
     """Create a new kragg-managed Python project with a layered layout."""
     if kind not in templates.KINDS:
         raise ValueError(f"unknown kind: {kind}")
+    if mcp_sdk not in templates.MCP_SDKS:
+        raise ValueError(f"unknown mcp sdk: {mcp_sdk}")
     if root.exists() and any(root.iterdir()):
         raise FileExistsError(f"Target directory is not empty: {root}")
+    package = normalize_package_name(package_name or project_name)
+    conflict = shadow_conflict(package)
+    if conflict is not None and not allow_shadowing:
+        raise ValueError(shadow_refusal(package, conflict))
     root.mkdir(parents=True, exist_ok=True)
-    package_name = normalize_package_name(project_name)
-    files = _guardrail_files(project_name, kind)
-    files.update(templates.kind_files(kind, package_name, project_name))
+    files = _guardrail_files(project_name, package, kind, mcp_sdk)
+    files.update(templates.kind_files(kind, package, project_name, mcp_sdk))
     return _write_files(root, files, overwrite=True)
 
 
@@ -37,7 +35,8 @@ def initialize_project(root: Path) -> list[Path]:
     """Add kragg guardrail files to an existing project (no skeleton code)."""
     root.mkdir(parents=True, exist_ok=True)
     project_name = root.name
-    files = _guardrail_files(project_name, kind="cli")
+    package = normalize_package_name(project_name)
+    files = _guardrail_files(project_name, package, kind="cli", mcp_sdk="fastmcp")
     del files["pyproject.toml"]
     written = _write_files(root, files, overwrite=False)
     _ensure_pyproject_config(root, project_name)
@@ -69,12 +68,17 @@ def _detect_package(root: Path) -> str:
     return packages[0]
 
 
-def _guardrail_files(project_name: str, kind: str) -> dict[str, str]:
+def _guardrail_files(
+    project_name: str,
+    package_name: str,
+    kind: str,
+    mcp_sdk: str,
+) -> dict[str, str]:
     return {
         "README.md": _readme(project_name),
         ".python-version": "3.12\n",
         ".gitignore": GITIGNORE,
-        "pyproject.toml": _pyproject(project_name, kind),
+        "pyproject.toml": _pyproject(project_name, package_name, kind, mcp_sdk),
         "Makefile": MAKEFILE,
         ".pre-commit-config.yaml": PRE_COMMIT,
         ".github/workflows/quality.yml": GITHUB_ACTIONS,
@@ -106,7 +110,8 @@ def _write_files(
 def _ensure_pyproject_config(root: Path, project_name: str) -> None:
     pyproject = root / "pyproject.toml"
     if not pyproject.exists():
-        pyproject.write_text(_pyproject(project_name, kind=None))
+        package = normalize_package_name(project_name)
+        pyproject.write_text(_pyproject(project_name, package, kind=None))
         return
 
     content = pyproject.read_text()
@@ -119,7 +124,7 @@ def _ensure_pyproject_config(root: Path, project_name: str) -> None:
         additions.append(
             "\n[dependency-groups]\n"
             "dev = [\n"
-            '    "kragg>=0.2.0",\n'
+            f'    "kragg>={__version__}",\n'
             '    "pytest>=9.0.2",\n'
             '    "pytest-cov>=7.0.0",\n'
             '    "mypy>=1.19.1",\n'
@@ -133,13 +138,18 @@ def _readme(project_name: str) -> str:
     return f"# {project_name}\n\nGenerated with `kragg`.\n"
 
 
-def _pyproject(project_name: str, kind: str | None) -> str:
-    package_name = normalize_package_name(project_name)
-    dependencies = _toml_list(templates.kind_dependencies(kind) if kind else [])
+def _pyproject(
+    project_name: str,
+    package_name: str,
+    kind: str | None,
+    mcp_sdk: str = "fastmcp",
+) -> str:
+    kind_deps = templates.kind_dependencies(kind, mcp_sdk) if kind else []
+    dependencies = _toml_list(kind_deps)
     dev_extras = templates.kind_dev_extras(kind) if kind else []
     dev = _toml_list(
         [
-            '"kragg>=0.2.0"',
+            f'"kragg>={__version__}"',
             '"pytest>=9.0.2"',
             '"pytest-cov>=7.0.0"',
             '"mypy>=1.19.1"',
