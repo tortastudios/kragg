@@ -38,6 +38,7 @@ Do not optimize for elegance by expanding scope. Do not optimize for performance
 - `src/kragg/cli.py`: CLI argument parsing and dispatch.
 - `src/kragg/commands.py`: command handlers behind each subcommand.
 - `src/kragg/scaffold.py`: generated project files and initialization logic.
+- `src/kragg/naming.py`: package-name normalization and the import-shadowing guard behind `kragg new`.
 - `src/kragg/gates/`: built-in guardrail checks for complexity, type/architecture constraints, secrets, criticality, and test quality/coverage.
 - `src/kragg/policy.py`: `kragg.toml` / `[tool.kragg]` policy loading and defaults.
 - `src/kragg/models.py`: shared result/context data types.

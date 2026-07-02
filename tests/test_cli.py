@@ -250,6 +250,40 @@ def test_new_refuses_non_empty_target(tmp_path: Path, monkeypatch: Any) -> None:
     assert main(["new", "demo", "--no-sync"]) == 1
 
 
+def test_new_refuses_shadowing_name(
+    tmp_path: Path, monkeypatch: Any, capsys: Any
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["new", "mcp", "--kind", "mcp", "--no-sync"]) == 1
+
+    err = capsys.readouterr().err
+    assert "--package" in err
+    assert "--allow-shadowing" in err
+    assert not (tmp_path / "mcp").exists()
+
+
+def test_new_allow_shadowing_warns_and_proceeds(
+    tmp_path: Path, monkeypatch: Any, capsys: Any
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["new", "mcp", "--allow-shadowing", "--no-sync"]) == 0
+
+    assert "warning: package 'mcp' shadows" in capsys.readouterr().err
+    assert (tmp_path / "mcp" / "src" / "mcp").is_dir()
+
+
+def test_new_package_flag_names_the_import_package(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert main(["new", "mcp", "--package", "brain-mcp", "--no-sync"]) == 0
+
+    assert (tmp_path / "mcp" / "src" / "brain_mcp").is_dir()
+
+
 def test_init_adds_kragg_files(tmp_path: Path, monkeypatch: Any) -> None:
     monkeypatch.chdir(tmp_path)
     (tmp_path / "pyproject.toml").write_text('[project]\nname = "existing"\n')

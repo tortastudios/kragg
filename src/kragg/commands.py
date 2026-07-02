@@ -22,6 +22,7 @@ from kragg import (
     journal,
     mapping,
     mutation,
+    naming,
     report,
     spec,
 )
@@ -45,8 +46,19 @@ from kragg.scaffold import create_new_project, generate_module, initialize_proje
 
 def cmd_new(args: argparse.Namespace) -> int:
     target = Path(args.name).resolve()
+    package = naming.normalize_package_name(args.package or target.name)
+    conflict = naming.shadow_conflict(package)
+    if conflict is not None and args.allow_shadowing:
+        print(f"warning: package '{package}' shadows {conflict}", file=sys.stderr)
     try:
-        written = create_new_project(target, target.name, kind=args.kind)
+        written = create_new_project(
+            target,
+            target.name,
+            kind=args.kind,
+            package_name=args.package,
+            mcp_sdk=args.mcp_sdk,
+            allow_shadowing=args.allow_shadowing,
+        )
     except (FileExistsError, ValueError) as exc:
         print(exc, file=sys.stderr)
         return 1
