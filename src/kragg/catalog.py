@@ -84,14 +84,16 @@ def build_check_gates(
             "boundaries",
             FAST,
             lambda: _boundaries_gate(root, policy),
-            skip_reason=None if len(policy.layers) >= 2 else "no layers configured",
+            skip_reason=_unconfigured("no layers configured", len(policy.layers) >= 2),
         ),
         GateSpec("structure", FAST, lambda: _structure_gate(root, policy)),
         GateSpec(
             "forbidden-calls",
             FAST,
             lambda: _forbidden_calls_gate(root, policy),
-            skip_reason=_no_forbidden_calls_reason(policy),
+            skip_reason=_unconfigured(
+                "no forbidden calls configured", policy.forbidden_calls
+            ),
         ),
         GateSpec(
             "nullable-default",
@@ -109,6 +111,9 @@ def build_check_gates(
             "secret-default",
             FAST,
             lambda: _secret_default_gate(root, policy),
+            skip_reason=_unconfigured(
+                "no secret name suffixes configured", policy.secret_name_suffixes
+            ),
         ),
         GateSpec("bandit", FAST, lambda: _bandit_gate(root, targets)),
         GateSpec("detect-secrets", FAST, lambda: _secrets_gate(root, targets)),
@@ -153,10 +158,9 @@ def _no_criticality_reason(root: Path) -> str | None:
     return "no criticality data (run `kragg criticality --write`)"
 
 
-def _no_forbidden_calls_reason(policy: KraggPolicy) -> str | None:
-    if policy.forbidden_calls:
-        return None
-    return "no forbidden calls configured"
+def _unconfigured(reason: str, configured: object) -> str | None:
+    """Unconfigured policy-driven gates SKIP visibly, never PASS silently."""
+    return None if configured else reason
 
 
 def build_security_gates(
@@ -173,12 +177,17 @@ def build_security_gates(
             "forbidden-calls",
             FAST,
             lambda: _forbidden_calls_gate(root, policy),
-            skip_reason=_no_forbidden_calls_reason(policy),
+            skip_reason=_unconfigured(
+                "no forbidden calls configured", policy.forbidden_calls
+            ),
         ),
         GateSpec(
             "secret-default",
             FAST,
             lambda: _secret_default_gate(root, policy),
+            skip_reason=_unconfigured(
+                "no secret name suffixes configured", policy.secret_name_suffixes
+            ),
         ),
         GateSpec("bandit", FAST, lambda: _bandit_gate(root, targets)),
         GateSpec("detect-secrets", FAST, lambda: _secrets_gate(root, targets)),
@@ -391,18 +400,14 @@ def _boundaries_gate(root: Path, policy: KraggPolicy) -> GateResult:
 
 def _forbidden_calls_gate(root: Path, policy: KraggPolicy) -> GateResult:
     violations = forbidden_calls.check_forbidden_calls(
-        root,
-        policy.source_paths,
-        policy.forbidden_calls,
+        root, policy.source_paths, policy.forbidden_calls
     )
     return _native_gate("forbidden-calls", violations)
 
 
 def _secret_default_gate(root: Path, policy: KraggPolicy) -> GateResult:
     violations = secret_default.check_secret_defaults(
-        root,
-        policy.source_paths,
-        policy.secret_name_suffixes,
+        root, policy.source_paths, policy.secret_name_suffixes
     )
     return _native_gate("secret-default", violations)
 
@@ -448,45 +453,12 @@ def _bandit_gate(root: Path, targets: tuple[str, ...]) -> GateResult:
 def _secrets_gate(root: Path, targets: tuple[str, ...]) -> GateResult:
     try:
         baseline = secrets.load_baseline(root)
-        violations = _scan_secrets(root, targets, baseline)
+        violations = secrets.scan_violations(root, targets, baseline)
     except RuntimeError as exc:
         return GateResult(
-            name="detect-secrets",
-            passed=False,
-            error=True,
-            output=str(exc),
+            name="detect-secrets", passed=False, error=True, output=str(exc)
         )
     return _native_gate("detect-secrets", violations)
-
-
-def _scan_secrets(
-    root: Path,
-    targets: tuple[str, ...],
-    baseline: dict[str, list[str]],
-) -> tuple[Violation, ...]:
-    violations: list[Violation] = []
-    for target in targets:
-        scan = secrets.scan_target(root, _resolve(root, target))
-        for filepath, findings in scan.items():
-            known = set(baseline.get(filepath, []))
-            for finding in findings:
-                hashed = finding.get("hashed_secret")
-                if not hashed or hashed in known:
-                    continue
-                raw_line = finding.get("line_number")
-                violations.append(
-                    Violation(
-                        message=f"potential secret: {finding.get('type', 'unknown')}",
-                        file=filepath,
-                        line=raw_line if isinstance(raw_line, int) else None,
-                        code="secret",
-                        fix_hint=(
-                            "remove the credential; if reviewed and safe, add it "
-                            "to .secrets.baseline"
-                        ),
-                    )
-                )
-    return tuple(violations)
 
 
 def _kragg_module(module: str, *args: str) -> list[str]:

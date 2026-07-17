@@ -117,3 +117,28 @@ def test_fix_hint_demands_loud_failure(tmp_path: Path) -> None:
 
     assert violations
     assert "fails loudly" in violations[0].fix_hint
+
+
+def test_flags_instance_attribute_default(tmp_path: Path) -> None:
+    code = "class C:\n    def __init__(self) -> None:\n        self.api_key = ''\n"
+
+    violations = _scan(tmp_path, code)
+
+    assert len(violations) == 1
+    assert "api_key" in violations[0].message
+
+
+def test_flags_every_name_in_a_chained_assignment(tmp_path: Path) -> None:
+    violations = _scan(tmp_path, "API_KEY = API_TOKEN = ''\n")
+
+    assert len(violations) == 2
+
+
+def test_flags_lambda_parameter_default(tmp_path: Path) -> None:
+    violations = _scan(tmp_path, "sign = lambda api_key='': api_key\n")
+
+    assert len(violations) == 1
+
+
+def test_empty_suffixes_disable_the_gate(tmp_path: Path) -> None:
+    assert _scan(tmp_path, "API_KEY = ''\n", suffixes=()) == ()

@@ -150,11 +150,19 @@ def _get_str_pairs(
     key: str,
     default: tuple[tuple[str, str], ...],
 ) -> tuple[tuple[str, str], ...]:
-    """Read a TOML sub-table of string keys to string values, sorted by key."""
+    """Read (entry, hint) pairs from a TOML sub-table or a bare list of entries.
+
+    Fail closed: a malformed hint degrades to an empty string but never drops
+    the entry — a config typo must not silently disable an enforced ban.
+    """
     value: Any = table.get(key)
-    if isinstance(value, dict) and all(
-        isinstance(entry, str) and isinstance(hint, str)
-        for entry, hint in value.items()
-    ):
-        return tuple(sorted(value.items()))
+    if isinstance(value, dict):
+        return tuple(
+            sorted(
+                (entry, hint if isinstance(hint, str) else "")
+                for entry, hint in value.items()
+            )
+        )
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return tuple(sorted((item, "") for item in value))
     return default

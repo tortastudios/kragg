@@ -111,12 +111,22 @@ def test_load_policy_reads_forbidden_calls_table(tmp_path: Path) -> None:
     )
 
 
-def test_forbidden_calls_with_non_string_hint_falls_back_to_default(
-    tmp_path: Path,
-) -> None:
+def test_forbidden_calls_with_non_string_hint_keeps_the_ban(tmp_path: Path) -> None:
+    """A config typo in a hint must never silently disable the ban."""
     (tmp_path / "kragg.toml").write_text('[forbidden_calls]\n"subprocess.run" = 3\n')
 
-    assert load_policy(tmp_path).forbidden_calls == ()
+    assert load_policy(tmp_path).forbidden_calls == (("subprocess.run", ""),)
+
+
+def test_forbidden_calls_accepts_bare_list_of_paths(tmp_path: Path) -> None:
+    (tmp_path / "kragg.toml").write_text(
+        'forbidden_calls = ["subprocess.run", "pickle"]\n'
+    )
+
+    assert load_policy(tmp_path).forbidden_calls == (
+        ("pickle", ""),
+        ("subprocess.run", ""),
+    )
 
 
 def test_load_policy_reads_secret_name_suffixes(tmp_path: Path) -> None:

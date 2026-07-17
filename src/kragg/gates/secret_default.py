@@ -8,9 +8,10 @@ places configuration is born:
 
 - ``os.environ.get(name, default)`` / ``os.getenv(name, default)`` where the
   literal name matches a secret suffix and any non-``None`` default is given;
-- annotated or plain assignments binding a secret-suffixed name to a string
-  literal (settings-class fields, module constants);
-- function parameters whose secret-suffixed name defaults to a string literal.
+- assignments binding a secret-suffixed name or attribute (``self.api_key``)
+  to a string literal, including chained targets and annotated fields;
+- function and lambda parameters whose secret-suffixed name defaults to a
+  string literal.
 
 ``None`` defaults stay legal: they model "absent" honestly and force the
 caller to handle the missing case. Suffixes come from the policy's
@@ -25,10 +26,12 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-from kragg.gates.criticality import module_imports, module_name
 from kragg.gates.forbidden_calls import resolve_call
+from kragg.gates.sources import ParsedSource, parsed_sources
 from kragg.gates.suppress import suppressed
 from kragg.models import Violation
+
+type _Finding = tuple[str, bool, ast.expr | ast.stmt]
 
 _ENV_READS = ("os.environ.get", "os.getenv")
 _FIX_HINT = (
@@ -43,84 +46,63 @@ def check_secret_defaults(
     suffixes: tuple[str, ...],
 ) -> tuple[Violation, ...]:
     """Return violations for secret-named bindings given silent defaults."""
+    if not suffixes:
+        return ()
     violations: list[Violation] = []
-    for source in source_paths:
-        base = root / source
-        if not base.is_dir():
-            continue
-        for path in sorted(base.rglob("*.py")):
-            violations.extend(_scan(path, base, root, suffixes))
+    for source in parsed_sources(root, source_paths):
+        violations.extend(_scan(source, suffixes))
     return tuple(violations)
 
 
-def _scan(
-    path: Path,
-    src_root: Path,
-    root: Path,
-    suffixes: tuple[str, ...],
-) -> list[Violation]:
-    text = path.read_text()
-    try:
-        tree = ast.parse(text)
-    except SyntaxError:
-        return []
-    module = module_name(path, src_root)
-    imports = module_imports(module, tree)
-    lines = text.splitlines()
-    relative = str(path.relative_to(root))
+def _scan(source: ParsedSource, suffixes: tuple[str, ...]) -> list[Violation]:
     violations: list[Violation] = []
-    for node in ast.walk(tree):
-        for name, default, flagged in _findings(node, module, imports, suffixes):
-            if suppressed(lines, flagged):
+    for node in ast.walk(source.tree):
+        for name, empty, flagged in _findings(node, source, suffixes):
+            if suppressed(source.lines, flagged):
                 continue
-            violations.append(_violation(name, default, relative, flagged))
+            violations.append(_violation(name, empty, source.relative, flagged))
     return sorted(violations, key=lambda violation: violation.line or 0)
-
-
-type _Finding = tuple[str, ast.expr, ast.expr | ast.stmt]
 
 
 def _findings(
     node: ast.AST,
-    module: str,
-    imports: dict[str, str],
+    source: ParsedSource,
     suffixes: tuple[str, ...],
 ) -> list[_Finding]:
-    """Return (secret name, default expression, node to report) triples."""
+    """Return (secret name, empty default, node to report) triples."""
     if isinstance(node, ast.Call):
-        return _env_read_default(node, module, imports, suffixes)
-    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-        return _literal_binding(node.target.id, node.value, node, suffixes)
-    if (
-        isinstance(node, ast.Assign)
-        and len(node.targets) == 1
-        and isinstance(node.targets[0], ast.Name)
-    ):
-        return _literal_binding(node.targets[0].id, node.value, node, suffixes)
-    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+        return _env_read_default(node, source, suffixes)
+    if isinstance(node, ast.AnnAssign):
+        return _literal_binding(_target_name(node.target), node.value, node, suffixes)
+    if isinstance(node, ast.Assign):
+        findings: list[_Finding] = []
+        for target in node.targets:
+            found = _literal_binding(_target_name(target), node.value, node, suffixes)
+            findings.extend(found)
+        return findings
+    if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.Lambda):
         return _parameter_defaults(node.args, suffixes)
     return []
 
 
 def _env_read_default(
     node: ast.Call,
-    module: str,
-    imports: dict[str, str],
+    source: ParsedSource,
     suffixes: tuple[str, ...],
 ) -> list[_Finding]:
-    if resolve_call(node.func, module, imports, {}) not in _ENV_READS:
-        return []
     if not node.args:
         return []
     name = node.args[0]
     if not (isinstance(name, ast.Constant) and isinstance(name.value, str)):
         return []
+    if not _is_secret_name(name.value, suffixes):
+        return []
     default = _call_default(node)
     if default is None or _is_none(default):
         return []
-    if not _is_secret_name(name.value, suffixes):
+    if resolve_call(node.func, source.module, source.imports, {}) not in _ENV_READS:
         return []
-    return [(name.value, default, node)]
+    return [(name.value, _is_empty_str(default), node)]
 
 
 def _call_default(node: ast.Call) -> ast.expr | None:
@@ -132,17 +114,26 @@ def _call_default(node: ast.Call) -> ast.expr | None:
     return None
 
 
+def _target_name(target: ast.expr) -> str | None:
+    """Name bound by an assignment target: a plain name or an attribute."""
+    if isinstance(target, ast.Name):
+        return target.id
+    if isinstance(target, ast.Attribute):
+        return target.attr
+    return None
+
+
 def _literal_binding(
-    name: str,
+    name: str | None,
     value: ast.expr | None,
     node: ast.stmt,
     suffixes: tuple[str, ...],
 ) -> list[_Finding]:
-    if value is None or not _is_str_literal(value):
+    if name is None or value is None or not _is_str_literal(value):
         return []
     if not _is_secret_name(name, suffixes):
         return []
-    return [(name, value, node)]
+    return [(name, _is_empty_str(value), node)]
 
 
 def _parameter_defaults(
@@ -160,7 +151,7 @@ def _parameter_defaults(
         ],
     ]
     return [
-        (arg.arg, default, default)
+        (arg.arg, _is_empty_str(default), default)
         for arg, default in pairs
         if _is_str_literal(default) and _is_secret_name(arg.arg, suffixes)
     ]
@@ -168,11 +159,10 @@ def _parameter_defaults(
 
 def _violation(
     name: str,
-    default: ast.expr,
+    empty: bool,
     relative: str,
     flagged: ast.expr | ast.stmt,
 ) -> Violation:
-    empty = isinstance(default, ast.Constant) and default.value == ""
     problem = (
         "silently defaults to empty" if empty else "has a hardcoded fallback default"
     )
@@ -195,6 +185,10 @@ def _is_secret_name(name: str, suffixes: tuple[str, ...]) -> bool:
 
 def _is_str_literal(node: ast.expr) -> bool:
     return isinstance(node, ast.Constant) and isinstance(node.value, str)
+
+
+def _is_empty_str(node: ast.expr) -> bool:
+    return isinstance(node, ast.Constant) and node.value == ""
 
 
 def _is_none(node: ast.expr) -> bool:
