@@ -75,11 +75,15 @@ config actually meets the strict floor — no missing/loosened flags, no
 `ignore_errors`, no bare `# type: ignore`; makes `strict-ai-python` a verified
 contract instead of a label), radon-cc, radon-mi, halstead, type-complexity,
 **boundaries** (layered import contract from `[tool.kragg] layers`),
-**structure** (file/symbol budgets), **nullable-default** (arithmetic on
-`.get(key, default)` results, which crash when the key is present-but-null),
-**critical-tests** (critical functions cannot change without test changes),
-**test-quality** (no assertion-free tests; critical functions must be
-referenced by tests), bandit, detect-secrets.
+**structure** (file/symbol budgets), **forbidden-calls** (project-banned APIs
+from `[tool.kragg.forbidden_calls]`, resolved through imports and
+annotations), **nullable-default** (arithmetic on `.get(key, default)`
+results, which crash when the key is present-but-null), **critical-tests**
+(critical functions cannot change without test changes), **test-quality**
+(no assertion-free tests; critical functions must be referenced by tests),
+**secret-default** (secret-named env reads, fields, and parameters given
+silent fallback defaults — a blank signing key must fail at startup, not
+sign), bandit, detect-secrets.
 Slow (skipped while fast gates fail): pytest+coverage, **critical-coverage**
 (public critical functions must have no uncovered lines), pip-audit.
 
@@ -105,6 +109,35 @@ actually defend behavior":
 
 Mutation and active flaky runs are deliberately outside `kragg check`: they are
 on-demand or CI surfaces, not inner-loop gates.
+
+## Security contracts
+
+No generic scanner can infer a repository's unstated security requirements —
+that request bodies must be bounded, that this codebase never shells out
+directly. What it can do is enforce them mechanically once a human states
+them. That is the `forbidden-calls` gate's job: build the safe wrapper, then
+ban the raw API repo-wide with a fix hint that names the wrapper —
+
+```toml
+[tool.kragg.forbidden_calls]
+"starlette.requests.Request.body" = "read bodies via app.http.read_limited_body(request, limit=...)"
+"subprocess.run" = "run external commands through app.runner.run_command"
+```
+
+Every resolvable call to a banned path fails with the hint as the fix; the
+wrapper's own implementation is the one legitimate call site, marked with a
+trailing `# kragg: ignore` so the exemption is visible in review. An entry
+bans everything beneath it (`pickle` bans `pickle.loads`; a class path bans
+every method). Resolution is deterministic and annotation-driven — it catches
+`await request.body()` on a `request: Request` parameter, which import-based
+banned-API linters cannot. Re-exports are distinct names: banning the
+starlette path does not ban `fastapi.Request.body` — list every path the
+project imports.
+
+`secret-default` closes the inverse hole to detect-secrets: not a credential
+that is present in the repo, but one that is absent at runtime and silently
+defaulted. kragg's own repo dogfoods the contract — raw `subprocess.run` is
+banned in favor of `kragg.runner.run_command`.
 
 `kragg mutation` runs cosmic-ray on the project interpreter, so add it to the
 project being checked (`uv add --dev cosmic-ray`); kragg prints the exact
@@ -169,6 +202,16 @@ mutation_include = [
     "src/billing/*.py",
 ]
 mutation_exclude = ["src/observability.py"]  # fail-safe glue; mutants mostly equivalent
+secret_name_suffixes = [
+    # names treated as secrets by secret-default (suffix or exact bare match);
+    # bare "_key" is deliberately absent: sort_key/cache_key are not secrets
+    "_secret", "_token", "_password", "_passphrase", "_api_key",
+    "_signing_key", "_secret_key", "_private_key", "_access_key",
+]
+
+[tool.kragg.forbidden_calls]
+# dotted API path -> the fix an agent should apply instead
+"subprocess.run" = "run external commands through app.runner.run_command"
 ```
 
 `structure_exclude` exempts matching files from the **structure** gate's
