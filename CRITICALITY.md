@@ -9,29 +9,29 @@ When editing them, full types, docstrings, and tests are mandatory.
 
 | Function | Fan-in | Fan-out | Centrality | Risk |
 | --- | ---: | ---: | ---: | --- |
-| `kragg.critical.critical_functions` | 3 | 4 | 0.0011 | MED |
-| `kragg.policy.load_policy` | 17 | 5 | 0.0010 | HIGH |
-| `kragg.report.to_payload` | 3 | 5 | 0.0006 | MED |
-| `kragg.changes.changed_python_files` | 4 | 4 | 0.0006 | MED |
+| `kragg.policy.load_policy` | 17 | 6 | 0.0008 | HIGH |
+| `kragg.critical.critical_functions` | 3 | 4 | 0.0007 | MED |
 
 ## Non-critical
 
 | Function | Fan-in | Fan-out | Centrality | Risk |
 | --- | ---: | ---: | ---: | --- |
-| `kragg.catalog.build_check_gates` | 2 | 15 | 0.0053 | low |
+| `kragg.catalog.build_check_gates` | 2 | 20 | 0.0058 | low |
 | `kragg.hooks._run_check` | 2 | 9 | 0.0050 | low |
-| `kragg.hooks._dispatch` | 1 | 4 | 0.0027 | low |
-| `kragg.hooks._post_edit` | 1 | 4 | 0.0018 | low |
-| `kragg.hooks._stop` | 1 | 4 | 0.0018 | low |
-| `kragg.coverage.critical_gaps` | 2 | 4 | 0.0015 | low |
-| `kragg.hooks.run_claude_hook` | 1 | 1 | 0.0014 | low |
-| `kragg.gates.critical_coverage.check_critical_coverage` | 1 | 2 | 0.0014 | low |
-| `kragg.catalog._critical_coverage_gate` | 1 | 2 | 0.0013 | low |
-| `kragg.gates.critical_tests.check_critical_tests` | 1 | 4 | 0.0007 | low |
-| `kragg.catalog._project_tool_gate` | 2 | 8 | 0.0007 | low |
-| `kragg.gates.test_quality.check_tests` | 1 | 3 | 0.0006 | low |
-| `kragg.catalog._test_quality_gate` | 1 | 2 | 0.0006 | low |
-| `kragg.catalog._critical_tests_gate` | 1 | 2 | 0.0006 | low |
-| `kragg.gates.criticality.build_call_graph` | 1 | 4 | 0.0006 | low |
-| `kragg.commands._run_pipeline` | 2 | 8 | 0.0006 | low |
+| `kragg.hooks._dispatch` | 1 | 4 | 0.0025 | low |
+| `kragg.hooks._post_edit` | 1 | 4 | 0.0017 | low |
+| `kragg.hooks._stop` | 1 | 4 | 0.0017 | low |
+| `kragg.hooks.run_claude_hook` | 1 | 1 | 0.0013 | low |
+| `kragg.gates.forbidden_calls.check_forbidden_calls` | 1 | 3 | 0.0011 | low |
+| `kragg.catalog._forbidden_calls_gate` | 2 | 2 | 0.0010 | low |
+| `kragg.coverage.critical_gaps` | 2 | 4 | 0.0010 | low |
+| `kragg.gates.secret_default.check_secret_defaults` | 1 | 2 | 0.0010 | low |
+| `kragg.gates.critical_coverage.check_critical_coverage` | 1 | 2 | 0.0009 | low |
+| `kragg.catalog._secret_default_gate` | 2 | 2 | 0.0009 | low |
+| `kragg.gates.forbidden_calls._Scanner.scan` | 1 | 2 | 0.0009 | low |
+| `kragg.gates.secret_default._scan` | 1 | 3 | 0.0009 | low |
+| `kragg.catalog._critical_coverage_gate` | 1 | 2 | 0.0009 | low |
+| `kragg.gates.secret_default._findings` | 1 | 4 | 0.0008 | low |
+| `kragg.gates.forbidden_calls._Scanner._walk` | 1 | 6 | 0.0007 | low |
+| `kragg.gates.critical_tests.check_critical_tests` | 1 | 4 | 0.0005 | low |
 
