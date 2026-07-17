@@ -18,6 +18,7 @@ from kragg.gates import (
     architecture,
     critical_coverage,
     critical_tests,
+    forbidden_calls,
     halstead,
     nullable_default,
     secrets,
@@ -86,6 +87,12 @@ def build_check_gates(
         ),
         GateSpec("structure", FAST, lambda: _structure_gate(root, policy)),
         GateSpec(
+            "forbidden-calls",
+            FAST,
+            lambda: _forbidden_calls_gate(root, policy),
+            skip_reason=_no_forbidden_calls_reason(policy),
+        ),
+        GateSpec(
             "nullable-default",
             FAST,
             lambda: _nullable_default_gate(root, policy),
@@ -140,8 +147,15 @@ def _no_criticality_reason(root: Path) -> str | None:
     return "no criticality data (run `kragg criticality --write`)"
 
 
+def _no_forbidden_calls_reason(policy: KraggPolicy) -> str | None:
+    if policy.forbidden_calls:
+        return None
+    return "no forbidden calls configured"
+
+
 def build_security_gates(
     root: Path,
+    policy: KraggPolicy,
     env: ProjectEnvironment,
     targets: tuple[str, ...],
     incremental: bool = False,
@@ -149,6 +163,12 @@ def build_security_gates(
     """Assemble the `kragg security` pipeline."""
     slow_skip = "incremental mode" if incremental else None
     return [
+        GateSpec(
+            "forbidden-calls",
+            FAST,
+            lambda: _forbidden_calls_gate(root, policy),
+            skip_reason=_no_forbidden_calls_reason(policy),
+        ),
         GateSpec("bandit", FAST, lambda: _bandit_gate(root, targets)),
         GateSpec("detect-secrets", FAST, lambda: _secrets_gate(root, targets)),
         GateSpec(
@@ -238,6 +258,16 @@ def _command_gate(
     )
 
 
+def _native_gate(name: str, violations: tuple[Violation, ...]) -> GateResult:
+    """Result for a built-in AST gate: violations are the whole story."""
+    return GateResult(
+        name=name,
+        passed=not violations,
+        violations=violations,
+        violation_count=len(violations),
+    )
+
+
 def _ruff_gate(root: Path, targets: tuple[str, ...]) -> GateResult:
     command = _kragg_module("ruff", "check", "--output-format", "json", *targets)
 
@@ -302,12 +332,7 @@ def _halstead_gate(root: Path, targets: tuple[str, ...]) -> GateResult:
                     fix_hint="reduce operators/operands; split the function",
                 )
             )
-    return GateResult(
-        name="halstead",
-        passed=not violations,
-        violations=tuple(violations),
-        violation_count=len(violations),
-    )
+    return _native_gate("halstead", tuple(violations))
 
 
 def _type_complexity_gate(
@@ -335,42 +360,31 @@ def _type_complexity_gate(
                     fix_hint=item.suggestion,
                 )
             )
-    return GateResult(
-        name="type-complexity",
-        passed=not violations,
-        violations=tuple(violations),
-        violation_count=len(violations),
-    )
+    return _native_gate("type-complexity", tuple(violations))
 
 
 def _nullable_default_gate(root: Path, policy: KraggPolicy) -> GateResult:
     violations = nullable_default.check_nullable_defaults(root, policy.source_paths)
-    return GateResult(
-        name="nullable-default",
-        passed=not violations,
-        violations=violations,
-        violation_count=len(violations),
-    )
+    return _native_gate("nullable-default", violations)
 
 
 def _typing_strictness_gate(root: Path, policy: KraggPolicy) -> GateResult:
     violations = typing_strictness.check_typing_strictness(root, policy.source_paths)
-    return GateResult(
-        name="typing-strictness",
-        passed=not violations,
-        violations=violations,
-        violation_count=len(violations),
-    )
+    return _native_gate("typing-strictness", violations)
 
 
 def _boundaries_gate(root: Path, policy: KraggPolicy) -> GateResult:
     violations = architecture.check_layers(root, policy.source_paths, policy.layers)
-    return GateResult(
-        name="boundaries",
-        passed=not violations,
-        violations=violations,
-        violation_count=len(violations),
+    return _native_gate("boundaries", violations)
+
+
+def _forbidden_calls_gate(root: Path, policy: KraggPolicy) -> GateResult:
+    violations = forbidden_calls.check_forbidden_calls(
+        root,
+        policy.source_paths,
+        policy.forbidden_calls,
     )
+    return _native_gate("forbidden-calls", violations)
 
 
 def _structure_gate(root: Path, policy: KraggPolicy) -> GateResult:
@@ -381,12 +395,7 @@ def _structure_gate(root: Path, policy: KraggPolicy) -> GateResult:
         policy.max_public_symbols,
         policy.structure_exclude,
     )
-    return GateResult(
-        name="structure",
-        passed=not violations,
-        violations=violations,
-        violation_count=len(violations),
-    )
+    return _native_gate("structure", violations)
 
 
 def _critical_tests_gate(root: Path, policy: KraggPolicy) -> GateResult:
@@ -395,32 +404,17 @@ def _critical_tests_gate(root: Path, policy: KraggPolicy) -> GateResult:
         policy.source_paths,
         policy.test_paths,
     )
-    return GateResult(
-        name="critical-tests",
-        passed=not violations,
-        violations=violations,
-        violation_count=len(violations),
-    )
+    return _native_gate("critical-tests", violations)
 
 
 def _test_quality_gate(root: Path, policy: KraggPolicy) -> GateResult:
     violations = test_quality.check_tests(root, policy.test_paths)
-    return GateResult(
-        name="test-quality",
-        passed=not violations,
-        violations=violations,
-        violation_count=len(violations),
-    )
+    return _native_gate("test-quality", violations)
 
 
 def _critical_coverage_gate(root: Path, policy: KraggPolicy) -> GateResult:
     violations = critical_coverage.check_critical_coverage(root, policy.source_paths)
-    return GateResult(
-        name="critical-coverage",
-        passed=not violations,
-        violations=violations,
-        violation_count=len(violations),
-    )
+    return _native_gate("critical-coverage", violations)
 
 
 def _bandit_gate(root: Path, targets: tuple[str, ...]) -> GateResult:
@@ -442,12 +436,7 @@ def _secrets_gate(root: Path, targets: tuple[str, ...]) -> GateResult:
             error=True,
             output=str(exc),
         )
-    return GateResult(
-        name="detect-secrets",
-        passed=not violations,
-        violations=violations,
-        violation_count=len(violations),
-    )
+    return _native_gate("detect-secrets", violations)
 
 
 def _scan_secrets(

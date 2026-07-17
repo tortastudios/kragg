@@ -10,7 +10,7 @@ from kragg.models import CompletedCommand
 def run_command(name: str, command: Sequence[str], cwd: Path) -> CompletedCommand:
     """Run an external tool and capture its result."""
     result = subprocess.run(  # noqa: S603 - commands are framework-defined lists.
-        list(command),
+        list(command),  # kragg: ignore - run_command IS the approved wrapper
         cwd=cwd,
         capture_output=True,
         text=True,

@@ -24,6 +24,7 @@ def test_default_policy_values_are_pinned() -> None:
     assert policy.structure_exclude == ()
     assert policy.mutation_include == ()
     assert policy.mutation_exclude == ()
+    assert policy.forbidden_calls == ()
 
 
 def test_policy_is_immutable() -> None:
@@ -79,6 +80,32 @@ def test_load_policy_reads_mutation_scope_lists(tmp_path: Path) -> None:
 
     assert policy.mutation_include == ("src/billing/engine.py", "src/billing/*.py")
     assert policy.mutation_exclude == ("src/observability.py",)
+
+
+def test_load_policy_reads_forbidden_calls_table(tmp_path: Path) -> None:
+    (tmp_path / "pyproject.toml").write_text(
+        "[tool.kragg]\n"
+        'profile = "strict-ai-python"\n'
+        "\n"
+        "[tool.kragg.forbidden_calls]\n"
+        '"subprocess.run" = "use app.runner.run_command"\n'
+        '"starlette.requests.Request.body" = "use app.http.read_limited_body"\n'
+    )
+
+    policy = load_policy(tmp_path)
+
+    assert policy.forbidden_calls == (
+        ("starlette.requests.Request.body", "use app.http.read_limited_body"),
+        ("subprocess.run", "use app.runner.run_command"),
+    )
+
+
+def test_forbidden_calls_with_non_string_hint_falls_back_to_default(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "kragg.toml").write_text('[forbidden_calls]\n"subprocess.run" = 3\n')
+
+    assert load_policy(tmp_path).forbidden_calls == ()
 
 
 def test_kragg_toml_takes_precedence_over_pyproject(tmp_path: Path) -> None:

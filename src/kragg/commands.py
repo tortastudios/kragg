@@ -131,7 +131,7 @@ def cmd_security(args: argparse.Namespace) -> int:
     env = _project_environment(root)
     if env is None:
         return EXIT_ENVIRONMENT
-    specs = build_security_gates(root, env, targets, incremental=mode != "full")
+    specs = build_security_gates(root, policy, env, targets, incremental=mode != "full")
     return _run_pipeline("security", args, root, policy, specs, targets, mode)
 
 
