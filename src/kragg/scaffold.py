@@ -420,6 +420,15 @@ service, domain, and test slots so everything has exactly one place.
   for each nullable field. The `typing-strictness` and `nullable-default` gates
   enforce the modeled cases; the residual — a nullable value typed as non-null —
   is yours to test.
+- **Security contracts** — when an unsafe API needs a bounded or validated
+  wrapper (request-body reads, subprocess, raw SQL), build the wrapper in
+  `services/`, then ban the raw API in `[tool.kragg.forbidden_calls]` with a
+  hint naming the wrapper; mark the wrapper's own call site with a trailing
+  `# kragg: ignore`. The `forbidden-calls` gate enforces the ban on every
+  change.
+- Secrets are required, never defaulted: read them with no fallback so a
+  missing value fails at startup, and validate them non-empty at the boundary.
+  The `secret-default` gate fails blank or hardcoded fallbacks.
 - Never hardcode credentials.
 - Never suppress security or typing findings without an explicit reason.
 """
