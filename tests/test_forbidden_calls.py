@@ -154,3 +154,78 @@ def test_most_specific_entry_wins(tmp_path: Path) -> None:
     violations = _scan(tmp_path, code, rules)
 
     assert violations[0].fix_hint == "use runner"
+
+
+def test_rebinding_clears_the_tracked_type(tmp_path: Path) -> None:
+    # `client` inside fetch is the stub parameter, not the module-level Client
+    code = (
+        "import httpx\n"
+        "client = httpx.Client()\n"
+        "def fetch(stub):\n"
+        "    client = stub\n"
+        "    return client.get('http://x')\n"
+    )
+
+    assert _scan(tmp_path, code, (("httpx.Client.get", "wrap it"),)) == ()
+
+
+def test_call_before_binding_is_not_flagged(tmp_path: Path) -> None:
+    code = "import httpx\nclient.get('http://x')\nclient = httpx.Client()\n"
+
+    assert _scan(tmp_path, code, (("httpx.Client.get", "wrap it"),)) == ()
+
+
+def test_class_body_binding_does_not_leak_into_methods(tmp_path: Path) -> None:
+    # Python class scope is invisible inside method bodies
+    code = (
+        "import httpx\n"
+        "class C:\n"
+        "    client = httpx.Client()\n"
+        "    def fetch(self):\n"
+        "        return client.get('http://x')\n"
+    )
+
+    assert _scan(tmp_path, code, (("httpx.Client.get", "wrap it"),)) == ()
+
+
+def test_class_body_call_is_checked_in_class_scope(tmp_path: Path) -> None:
+    code = (
+        "import httpx\n"
+        "class C:\n"
+        "    client = httpx.Client()\n"
+        "    data = client.get('http://x')\n"
+    )
+
+    violations = _scan(tmp_path, code, (("httpx.Client.get", "wrap it"),))
+
+    assert [violation.line for violation in violations] == [4]
+
+
+def test_parameter_default_expressions_are_scanned(tmp_path: Path) -> None:
+    # defaults evaluate in the enclosing scope, at import time
+    code = "import subprocess\ndef f(x=subprocess.run(['ls'])):\n    return x\n"
+
+    violations = _scan(tmp_path, code, (("subprocess.run", "wrap it"),))
+
+    assert [violation.line for violation in violations] == [2]
+
+
+def test_comprehension_target_shadows_outer_binding(tmp_path: Path) -> None:
+    code = (
+        "import httpx\n"
+        "client = httpx.Client()\n"
+        "results = [client.get(u) for client in stubs]\n"
+    )
+
+    assert _scan(tmp_path, code, (("httpx.Client.get", "wrap it"),)) == ()
+
+
+def test_for_target_clears_the_tracked_type(tmp_path: Path) -> None:
+    code = (
+        "import httpx\n"
+        "client = httpx.Client()\n"
+        "for client in stubs():\n"
+        "    client.get('http://x')\n"
+    )
+
+    assert _scan(tmp_path, code, (("httpx.Client.get", "wrap it"),)) == ()

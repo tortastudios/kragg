@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from typing import Any, TypedDict, cast
 
+from kragg.models import Violation
 from kragg.runner import run_command
 
 
@@ -61,6 +62,38 @@ def scan_target(root: Path, target: Path) -> ScanResults:
     if not isinstance(raw_results, dict):
         return {}
     return cast(ScanResults, raw_results)
+
+
+def scan_violations(
+    root: Path,
+    targets: tuple[str, ...],
+    baseline: dict[str, list[str]],
+) -> tuple[Violation, ...]:
+    """Scan targets, returning findings absent from the reviewed baseline."""
+    violations: list[Violation] = []
+    for target in targets:
+        path = Path(target)
+        scan = scan_target(root, path if path.is_absolute() else root / path)
+        for filepath, findings in scan.items():
+            known = set(baseline.get(filepath, []))
+            for finding in findings:
+                hashed = finding.get("hashed_secret")
+                if not hashed or hashed in known:
+                    continue
+                raw_line = finding.get("line_number")
+                violations.append(
+                    Violation(
+                        message=f"potential secret: {finding.get('type', 'unknown')}",
+                        file=filepath,
+                        line=raw_line if isinstance(raw_line, int) else None,
+                        code="secret",
+                        fix_hint=(
+                            "remove the credential; if reviewed and safe, add it "
+                            "to .secrets.baseline"
+                        ),
+                    )
+                )
+    return tuple(violations)
 
 
 def find_new_secrets(

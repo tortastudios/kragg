@@ -13,7 +13,10 @@ deterministic — precision over recall, like the criticality graph:
 - imported names and module aliases resolve through the import table;
 - ``obj.method()`` resolves when ``obj`` has a known class from a parameter
   annotation, an annotated assignment, or a ``name = package.Class(...)``
-  constructor assignment (capitalized final segment);
+  constructor assignment (capitalized final segment). Types are tracked in
+  source order and any rebinding — assignment, loop or ``with`` target,
+  lambda parameter, comprehension target — clears the tracked type;
+- class-body bindings are not visible inside method bodies (Python scoping);
 - ``self.method()`` and unresolvable receivers are ignored, never guessed.
 
 Re-exports are distinct names: banning ``starlette.requests.Request.body``
@@ -25,16 +28,18 @@ legitimate; mark it with a trailing ``# kragg: ignore``.
 from __future__ import annotations
 
 import ast
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from kragg.gates.criticality import module_imports, module_name
+from kragg.gates.sources import ParsedSource, parsed_sources
 from kragg.gates.suppress import suppressed
 from kragg.models import Violation
 
 type _AnyFunction = ast.FunctionDef | ast.AsyncFunctionDef
-type _ScopeParts = tuple[list[ast.AST], list[_AnyFunction], list[ast.ClassDef]]
+type _Types = dict[str, str]
 
+_COMPREHENSIONS = (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)
 _DEFAULT_HINT = "this API is forbidden by the project policy"
 
 
@@ -48,63 +53,78 @@ def check_forbidden_calls(
         return ()
     rules = dict(forbidden)
     violations: list[Violation] = []
-    for source in source_paths:
-        base = root / source
-        if not base.is_dir():
-            continue
-        for path in sorted(base.rglob("*.py")):
-            violations.extend(_scan(path, base, root, rules))
+    for source in parsed_sources(root, source_paths):
+        scanner = _Scanner(source, rules)
+        scanner.scan(source.tree.body, {}, is_class=False)
+        violations.extend(
+            sorted(scanner.violations, key=lambda violation: violation.line or 0)
+        )
     return tuple(violations)
-
-
-def _scan(
-    path: Path,
-    src_root: Path,
-    root: Path,
-    rules: dict[str, str],
-) -> list[Violation]:
-    text = path.read_text()
-    try:
-        tree = ast.parse(text)
-    except SyntaxError:
-        return []
-    module = module_name(path, src_root)
-    scanner = _Scanner(
-        module=module,
-        imports=module_imports(module, tree),
-        rules=rules,
-        lines=text.splitlines(),
-        relative=str(path.relative_to(root)),
-    )
-    scanner.scan(tree.body, {})
-    return sorted(scanner.violations, key=lambda violation: violation.line or 0)
 
 
 @dataclass
 class _Scanner:
     """Walks one module scope-by-scope, resolving calls against the rules."""
 
-    module: str
-    imports: dict[str, str]
+    source: ParsedSource
     rules: dict[str, str]
-    lines: list[str]
-    relative: str
     violations: list[Violation] = field(default_factory=list)
 
-    def scan(self, body: list[ast.stmt], inherited: dict[str, str]) -> None:
-        nodes, functions, classes = _split_scope(body)
+    def scan(self, body: list[ast.stmt], inherited: _Types, is_class: bool) -> None:
         types = dict(inherited)
-        for node in nodes:
-            self._record_binding(node, types)
-        for node in nodes:
-            if isinstance(node, ast.Call):
-                self._check_call(node, types)
+        functions: list[_AnyFunction] = []
+        classes: list[ast.ClassDef] = []
+        self._walk(body, types, functions, classes)
+        # Class-body names are invisible inside method bodies: nested scopes
+        # of a class see its enclosing scope, not the class scope.
+        child = dict(inherited) if is_class else types
         for function in functions:
-            self.scan(function.body, {**types, **self._parameter_types(function)})
+            scope = {**child, **self._parameter_types(function)}
+            self.scan(function.body, scope, is_class=False)
         for cls in classes:
-            self.scan(cls.body, types)
+            self.scan(cls.body, child, is_class=True)
 
-    def _record_binding(self, node: ast.AST, types: dict[str, str]) -> None:
+    def _walk(
+        self,
+        nodes: Sequence[ast.AST],
+        types: _Types,
+        functions: list[_AnyFunction],
+        classes: list[ast.ClassDef],
+    ) -> None:
+        """Visit a scope's nodes in source order, tracking bindings as they occur.
+
+        Nested function/class bodies are collected for their own scope pass;
+        their decorators, parameter defaults, and base classes evaluate here.
+        """
+        for node in nodes:
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+                functions.append(node)
+                here = [*node.decorator_list, *_argument_defaults(node.args)]
+                self._walk(here, types, functions, classes)
+            elif isinstance(node, ast.ClassDef):
+                classes.append(node)
+                keyword_values = [keyword.value for keyword in node.keywords]
+                here = [*node.decorator_list, *node.bases, *keyword_values]
+                self._walk(here, types, functions, classes)
+            elif isinstance(node, ast.Lambda):
+                shadows = {arg.arg for arg in _all_arguments(node.args)}
+                here = [*_argument_defaults(node.args), node.body]
+                self._walk(here, _without(types, shadows), functions, classes)
+            elif isinstance(node, _COMPREHENSIONS):
+                shadows = _target_names([gen.target for gen in node.generators])
+                children = list(ast.iter_child_nodes(node))
+                self._walk(children, _without(types, shadows), functions, classes)
+            else:
+                if isinstance(node, ast.Call):
+                    self._check_call(node, types)
+                self._record_binding(node, types)
+                children = list(ast.iter_child_nodes(node))
+                self._walk(children, types, functions, classes)
+
+    def _record_binding(self, node: ast.AST, types: _Types) -> None:
+        """Track name → class bindings; any rebinding clears the old type."""
+        for name in _rebound_names(node):
+            types.pop(name, None)
         if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
             annotated = self._annotation_path(node.annotation)
             if annotated is not None:
@@ -119,32 +139,29 @@ class _Scanner:
             if constructed is not None:
                 types[node.targets[0].id] = constructed
 
-    def _check_call(self, node: ast.Call, types: dict[str, str]) -> None:
+    def _check_call(self, node: ast.Call, types: _Types) -> None:
         resolved = self._resolve(node.func, types)
         if resolved is None:
             return
-        entry = _matching_rule(resolved, self.rules)
-        if entry is None or suppressed(self.lines, node):
+        rule = _matching_rule(resolved, self.rules)
+        if rule is None or suppressed(self.source.lines, node):
             return
+        entry, hint = rule
         banned = f" (banned: `{entry}`)" if entry != resolved else ""
         self.violations.append(
             Violation(
                 message=f"forbidden call `{resolved}`{banned}",
-                file=self.relative,
+                file=self.source.relative,
                 line=node.lineno,
                 code="forbidden-call",
-                fix_hint=self.rules[entry] or _DEFAULT_HINT,
+                fix_hint=hint or _DEFAULT_HINT,
             )
         )
 
-    def _resolve(self, func: ast.expr, types: dict[str, str]) -> str | None:
-        return resolve_call(func, self.module, self.imports, types)
+    def _resolve(self, func: ast.expr, types: _Types) -> str | None:
+        return resolve_call(func, self.source.module, self.source.imports, types)
 
-    def _constructor_path(
-        self,
-        func: ast.expr,
-        types: dict[str, str],
-    ) -> str | None:
+    def _constructor_path(self, func: ast.expr, types: _Types) -> str | None:
         """Resolve ``name = pkg.Class(...)``; a lowercase tail is a plain call."""
         resolved = self._resolve(func, types)
         if resolved is None:
@@ -163,10 +180,9 @@ class _Scanner:
             return self._resolve(annotation, {})
         return None
 
-    def _parameter_types(self, function: _AnyFunction) -> dict[str, str]:
-        args = function.args
-        types: dict[str, str] = {}
-        for arg in [*args.posonlyargs, *args.args, *args.kwonlyargs]:
+    def _parameter_types(self, function: _AnyFunction) -> _Types:
+        types: _Types = {}
+        for arg in _all_arguments(function.args):
             if arg.annotation is None:
                 continue
             annotated = self._annotation_path(arg.annotation)
@@ -205,35 +221,57 @@ def resolve_call(
     return ".".join([base, *parts])
 
 
-def _split_scope(body: list[ast.stmt]) -> _ScopeParts:
-    """Partition a scope into its own nodes and the nested defs it owns.
-
-    Decorator expressions evaluate in the enclosing scope, so they stay with
-    the current scope's nodes; function and class bodies become child scopes.
-    """
-    nodes: list[ast.AST] = []
-    functions: list[_AnyFunction] = []
-    classes: list[ast.ClassDef] = []
-    stack: list[ast.AST] = list(body)
-    while stack:
-        node = stack.pop()
-        if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
-            functions.append(node)
-            stack.extend(node.decorator_list)
-        elif isinstance(node, ast.ClassDef):
-            classes.append(node)
-            stack.extend(node.decorator_list)
-        else:
-            nodes.append(node)
-            stack.extend(ast.iter_child_nodes(node))
-    return nodes, functions, classes
-
-
-def _matching_rule(resolved: str, rules: dict[str, str]) -> str | None:
+def _matching_rule(resolved: str, rules: dict[str, str]) -> tuple[str, str] | None:
     """Most specific entry matching the call: exact or dotted-prefix ban."""
     matches = [
         entry
         for entry in rules
         if resolved == entry or resolved.startswith(f"{entry}.")
     ]
-    return max(matches, key=len) if matches else None
+    if not matches:
+        return None
+    entry = max(matches, key=len)
+    return entry, rules[entry]
+
+
+def _rebound_names(node: ast.AST) -> set[str]:
+    """Names a statement rebinds — assignments, loop and ``with`` targets."""
+    if isinstance(node, ast.Assign):
+        return _target_names(node.targets)
+    if isinstance(node, ast.AnnAssign | ast.AugAssign):
+        return _target_names([node.target])
+    if isinstance(node, ast.For | ast.AsyncFor):
+        return _target_names([node.target])
+    if isinstance(node, ast.With | ast.AsyncWith):
+        bound = [item.optional_vars for item in node.items if item.optional_vars]
+        return _target_names(bound)
+    return set()
+
+
+def _target_names(targets: list[ast.expr]) -> set[str]:
+    """Every plain name bound by the targets, through tuple/star nesting."""
+    names: set[str] = set()
+    stack = list(targets)
+    while stack:
+        node = stack.pop()
+        if isinstance(node, ast.Name):
+            names.add(node.id)
+        elif isinstance(node, ast.Starred):
+            stack.append(node.value)
+        elif isinstance(node, ast.Tuple | ast.List):
+            stack.extend(node.elts)
+    return names
+
+
+def _argument_defaults(args: ast.arguments) -> list[ast.expr]:
+    """Default expressions, which evaluate in the enclosing scope."""
+    keyword_defaults = [default for default in args.kw_defaults if default is not None]
+    return [*args.defaults, *keyword_defaults]
+
+
+def _all_arguments(args: ast.arguments) -> list[ast.arg]:
+    return [*args.posonlyargs, *args.args, *args.kwonlyargs]
+
+
+def _without(types: _Types, names: set[str]) -> _Types:
+    return {name: path for name, path in types.items() if name not in names}
