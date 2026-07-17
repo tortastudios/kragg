@@ -21,6 +21,7 @@ from kragg.gates import (
     forbidden_calls,
     halstead,
     nullable_default,
+    secret_default,
     secrets,
     test_quality,
     type_complexity,
@@ -104,6 +105,11 @@ def build_check_gates(
             skip_reason=_no_criticality_reason(root),
         ),
         GateSpec("test-quality", FAST, lambda: _test_quality_gate(root, policy)),
+        GateSpec(
+            "secret-default",
+            FAST,
+            lambda: _secret_default_gate(root, policy),
+        ),
         GateSpec("bandit", FAST, lambda: _bandit_gate(root, targets)),
         GateSpec("detect-secrets", FAST, lambda: _secrets_gate(root, targets)),
         GateSpec(
@@ -168,6 +174,11 @@ def build_security_gates(
             FAST,
             lambda: _forbidden_calls_gate(root, policy),
             skip_reason=_no_forbidden_calls_reason(policy),
+        ),
+        GateSpec(
+            "secret-default",
+            FAST,
+            lambda: _secret_default_gate(root, policy),
         ),
         GateSpec("bandit", FAST, lambda: _bandit_gate(root, targets)),
         GateSpec("detect-secrets", FAST, lambda: _secrets_gate(root, targets)),
@@ -385,6 +396,15 @@ def _forbidden_calls_gate(root: Path, policy: KraggPolicy) -> GateResult:
         policy.forbidden_calls,
     )
     return _native_gate("forbidden-calls", violations)
+
+
+def _secret_default_gate(root: Path, policy: KraggPolicy) -> GateResult:
+    violations = secret_default.check_secret_defaults(
+        root,
+        policy.source_paths,
+        policy.secret_name_suffixes,
+    )
+    return _native_gate("secret-default", violations)
 
 
 def _structure_gate(root: Path, policy: KraggPolicy) -> GateResult:

@@ -138,22 +138,7 @@ class _Scanner:
         )
 
     def _resolve(self, func: ast.expr, types: dict[str, str]) -> str | None:
-        parts: list[str] = []
-        node = func
-        while isinstance(node, ast.Attribute):
-            parts.append(node.attr)
-            node = node.value
-        if not isinstance(node, ast.Name):
-            return None
-        parts.reverse()
-        if not parts:
-            return self.imports.get(node.id, f"{self.module}.{node.id}")
-        if node.id == "self":
-            return None
-        base = types.get(node.id) or self.imports.get(node.id)
-        if base is None:
-            return None
-        return ".".join([base, *parts])
+        return resolve_call(func, self.module, self.imports, types)
 
     def _constructor_path(
         self,
@@ -188,6 +173,36 @@ class _Scanner:
             if annotated is not None:
                 types[arg.arg] = annotated
         return types
+
+
+def resolve_call(
+    func: ast.expr,
+    module: str,
+    imports: dict[str, str],
+    types: dict[str, str],
+) -> str | None:
+    """Resolve a callable expression to a dotted path; None when unresolvable.
+
+    Bare names resolve through the import table, falling back to the defining
+    module; attribute chains resolve their base through known local types
+    (annotations, constructor assignments) and then the import table.
+    """
+    parts: list[str] = []
+    node = func
+    while isinstance(node, ast.Attribute):
+        parts.append(node.attr)
+        node = node.value
+    if not isinstance(node, ast.Name):
+        return None
+    parts.reverse()
+    if not parts:
+        return imports.get(node.id, f"{module}.{node.id}")
+    if node.id == "self":
+        return None
+    base = types.get(node.id) or imports.get(node.id)
+    if base is None:
+        return None
+    return ".".join([base, *parts])
 
 
 def _split_scope(body: list[ast.stmt]) -> _ScopeParts:
