@@ -25,6 +25,17 @@ def test_default_policy_values_are_pinned() -> None:
     assert policy.mutation_include == ()
     assert policy.mutation_exclude == ()
     assert policy.forbidden_calls == ()
+    assert policy.secret_name_suffixes == (
+        "_secret",
+        "_token",
+        "_password",
+        "_passphrase",
+        "_api_key",
+        "_signing_key",
+        "_secret_key",
+        "_private_key",
+        "_access_key",
+    )
 
 
 def test_policy_is_immutable() -> None:
@@ -106,6 +117,14 @@ def test_forbidden_calls_with_non_string_hint_falls_back_to_default(
     (tmp_path / "kragg.toml").write_text('[forbidden_calls]\n"subprocess.run" = 3\n')
 
     assert load_policy(tmp_path).forbidden_calls == ()
+
+
+def test_load_policy_reads_secret_name_suffixes(tmp_path: Path) -> None:
+    (tmp_path / "kragg.toml").write_text(
+        'secret_name_suffixes = ["_secret", "_kennwort"]\n'
+    )
+
+    assert load_policy(tmp_path).secret_name_suffixes == ("_secret", "_kennwort")
 
 
 def test_kragg_toml_takes_precedence_over_pyproject(tmp_path: Path) -> None:

@@ -24,6 +24,17 @@ class KraggPolicy:
     mutation_include: tuple[str, ...] = ()
     mutation_exclude: tuple[str, ...] = ()
     forbidden_calls: tuple[tuple[str, str], ...] = ()
+    secret_name_suffixes: tuple[str, ...] = (
+        "_secret",
+        "_token",
+        "_password",
+        "_passphrase",
+        "_api_key",
+        "_signing_key",
+        "_secret_key",
+        "_private_key",
+        "_access_key",
+    )
 
     def as_dict(self) -> dict[str, object]:
         return cast(dict[str, object], asdict(self))
@@ -79,6 +90,11 @@ def load_policy(root: Path) -> KraggPolicy:
             table,
             "forbidden_calls",
             default.forbidden_calls,
+        ),
+        secret_name_suffixes=_get_str_tuple(
+            table,
+            "secret_name_suffixes",
+            default.secret_name_suffixes,
         ),
     )
 
