@@ -21,6 +21,7 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+from kragg.gates.suppress import suppressed
 from kragg.models import Violation
 
 _ARITH: tuple[type[ast.operator], ...] = (
@@ -32,7 +33,6 @@ _ARITH: tuple[type[ast.operator], ...] = (
     ast.Mod,
     ast.Pow,
 )
-_SUPPRESS = "# kragg: ignore"
 
 
 def check_nullable_defaults(
@@ -66,7 +66,7 @@ def _scan(path: Path, root: Path) -> list[Violation]:
             continue
         if not any(_is_dangerous_get(operand) for operand in operands):
             continue
-        if _suppressed(lines, node):
+        if suppressed(lines, node):
             continue
         violations.append(
             Violation(
@@ -115,13 +115,4 @@ def _is_constant(node: ast.expr) -> bool:
         isinstance(node, ast.Name)
         and node.id.isupper()
         and any(char.isalpha() for char in node.id)
-    )
-
-
-def _suppressed(lines: list[str], node: ast.BinOp) -> bool:
-    end = node.end_lineno or node.lineno
-    return any(
-        _SUPPRESS in lines[index]
-        for index in range(node.lineno - 1, end)
-        if 0 <= index < len(lines)
     )

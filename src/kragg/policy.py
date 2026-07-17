@@ -23,6 +23,7 @@ class KraggPolicy:
     structure_exclude: tuple[str, ...] = ()
     mutation_include: tuple[str, ...] = ()
     mutation_exclude: tuple[str, ...] = ()
+    forbidden_calls: tuple[tuple[str, str], ...] = ()
 
     def as_dict(self) -> dict[str, object]:
         return cast(dict[str, object], asdict(self))
@@ -74,6 +75,11 @@ def load_policy(root: Path) -> KraggPolicy:
             "mutation_exclude",
             default.mutation_exclude,
         ),
+        forbidden_calls=_get_str_pairs(
+            table,
+            "forbidden_calls",
+            default.forbidden_calls,
+        ),
     )
 
 
@@ -120,4 +126,19 @@ def _get_str_tuple(
         return (value,)
     if isinstance(value, list) and all(isinstance(item, str) for item in value):
         return tuple(value)
+    return default
+
+
+def _get_str_pairs(
+    table: dict[str, object],
+    key: str,
+    default: tuple[tuple[str, str], ...],
+) -> tuple[tuple[str, str], ...]:
+    """Read a TOML sub-table of string keys to string values, sorted by key."""
+    value: Any = table.get(key)
+    if isinstance(value, dict) and all(
+        isinstance(entry, str) and isinstance(hint, str)
+        for entry, hint in value.items()
+    ):
+        return tuple(sorted(value.items()))
     return default

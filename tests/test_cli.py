@@ -313,7 +313,7 @@ def test_security_json_reports_gates(
 
     payload = json.loads(capsys.readouterr().out)
     names = [gate["name"] for gate in payload["gates"]]
-    assert names == ["bandit", "detect-secrets", "pip-audit"]
+    assert names == ["forbidden-calls", "bandit", "detect-secrets", "pip-audit"]
 
 
 def test_doctor_reports_missing_project_tools(

@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any, TypedDict, cast
+
+from kragg.runner import run_command
 
 
 class SecretFinding(TypedDict, total=False):
@@ -50,13 +51,7 @@ def load_baseline(
 def scan_target(root: Path, target: Path) -> ScanResults:
     """Run detect-secrets scan on a target path."""
     command = [sys.executable, "-m", "detect_secrets", "scan", str(target)]
-    result = subprocess.run(  # noqa: S603 - command is framework-defined.
-        command,
-        cwd=root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    result = run_command("detect-secrets", command, root)
 
     if result.returncode != 0:
         raise RuntimeError(f"detect-secrets scan failed: {result.stderr.strip()}")

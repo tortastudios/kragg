@@ -119,3 +119,6 @@ test_paths = ["tests"]
 coverage_fail_under = 80
 type_max_nesting_depth = 2
 type_max_length = 40
+
+[tool.kragg.forbidden_calls]
+"subprocess.run" = "run external commands through kragg.runner.run_command"
